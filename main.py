@@ -13,7 +13,7 @@ netlist = Netlist(inputList)
 netlist.display_components()
 
 
-#system of the form Ax = b
+#system of the form A·x = b
 A = netlist.A
 x = netlist.x
 z = netlist.b
