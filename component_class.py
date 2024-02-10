@@ -8,59 +8,46 @@ import sympy as sp
 
 
 class Component:
-    def __init__(self, start_node, end_node, symbol):
+    def __init__(self, start_node, end_node, symbol, value):
         self.start_node = start_node
         self.end_node = end_node
-        self.symbol = sp.symbols(symbol)  # Will be set by child classes
-        self.admittance = None
-        self.voltage = None
+        self.symbol = sp.symbols(symbol)
+        self.value = value
+        self.admittance = None  # This will be set in each subclass
 
     def __str__(self):
         return type(self).__name__
-    
-    def get_voltage(self, x_vector):
+
+class PassiveComponent(Component):
+    def __init__(self, start_node, end_node, symbol, value):
+        super().__init__(start_node, end_node, symbol, value)
         
-        x_vector = sp.zeros(1,1).col_join(x_vector)
-        v_start_node = x_vector[self.start_node]
-        v_end_node = x_vector[self.end_node]
-        
-        voltage = v_end_node - v_start_node
-        
-        return sp.simplify(voltage)
-        
+
+class Resistance(PassiveComponent):
+    def __init__(self, start_node, end_node, index, value):
+        super().__init__(start_node, end_node, index, value)
+        R = self.symbol
+        self.admittance = 1 / R
+
+class Capacitor(PassiveComponent):
+    def __init__(self, start_node, end_node, index, value):
+        super().__init__(start_node, end_node, index, value)
+        s, C = sp.symbols('s'), self.symbol
+        self.admittance = s * C
+
+class Inductance(PassiveComponent):
+    def __init__(self, start_node, end_node, index, value):
+        super().__init__(start_node, end_node, index, value)
+        s, L = sp.symbols('s'), self.symbol
+        self.admittance = 1 / (s * L)
 
 class VoltageSource(Component):
-    def __init__(self, start_node, end_node, index):
-        super().__init__(start_node, end_node, index)
-        
-        
+    def __init__(self, start_node, end_node, index, value):
+        super().__init__(start_node, end_node, index, value)
+
 class CurrentSource(Component):
-    def __init__(self, start_node, end_node, index):
-        super().__init__(start_node, end_node, index)
-
-
-class Resistance(Component):
-    def __init__(self, start_node, end_node, index):
-        super().__init__(start_node, end_node, index)
-        
-        R = self.symbol
-        self.admittance = 1/R
-
-
-class Capacitor(Component):
-    def __init__(self, start_node, end_node, index):
-        super().__init__(start_node, end_node, index)
-
-        omega, C = sp.symbols('omega'), self.symbol
-        self.admittance = sp.I * omega * C
-
-
-class Inductance(Component):
-    def __init__(self, start_node, end_node, index):
-        super().__init__(start_node, end_node, index)
-        
-        omega, L = sp.symbols('omega'), self.symbol
-        self.admittance = 1 / (sp.I * omega * L)
+    def __init__(self, start_node, end_node, index, value):
+        super().__init__(start_node, end_node, index, value)
 
     
     
