@@ -2,10 +2,10 @@ from netlist_class import *
 
 #declaration of the netlist
 #arbitrary values
-inputList  =   ['0 1 Vin 1', 
-                '1 2 R1 1',
-                '2 0 L2 1',
-                '3 0 C1 1']
+inputList  =   ['Vin 0 1 1', 
+                'R1 1 2 8',
+                'L1 2 3 4',
+                'C1 3 0 1']
 
 
 netlist = Netlist(inputList)
