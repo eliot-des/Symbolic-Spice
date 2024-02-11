@@ -19,7 +19,7 @@ class Netlist:
 
 
     def create_component(self, netlist_line):
-        start_node, end_node, symbol, value = netlist_line.split()
+        symbol, start_node, end_node, value = netlist_line.split()
 
         if symbol.startswith('V'):
             return VoltageSource(start_node, end_node, symbol, value)
