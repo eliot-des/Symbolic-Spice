@@ -21,8 +21,8 @@ class Component:
     def __str__(self):
         return type(self).__name__
     
-    def setup(self, netlist):
-        self.netlist = netlist
+    def setup(self, circuit):
+        self.circuit = circuit
 
     def stamp(self):
         raise NotImplementedError("This method should be implemented by subclasses.")
@@ -34,12 +34,12 @@ class AdmittanceComponent(Component):
         self.admittance = None # This is set in subclasses
 
     def stamp(self):
-        #method to stamp the admittance of the components in the A matrix of the netlist class
-        self.netlist.A[self.start_node, self.start_node] += self.admittance
-        self.netlist.A[self.end_node,     self.end_node] += self.admittance    
+        #method to stamp the admittance of the components in the A matrix of the circuit class
+        self.circuit.A[self.start_node, self.start_node] += self.admittance
+        self.circuit.A[self.end_node,     self.end_node] += self.admittance    
         # Off-diagonal elements
-        self.netlist.A[self.start_node,   self.end_node] -= self.admittance
-        self.netlist.A[self.end_node,   self.start_node] -= self.admittance
+        self.circuit.A[self.start_node,   self.end_node] -= self.admittance
+        self.circuit.A[self.end_node,   self.start_node] -= self.admittance
 
 class Resistance(AdmittanceComponent):     
     def __init__(self, start_node, end_node, symbol, value):
@@ -69,18 +69,18 @@ class VoltageSource(Component):
         self.index = index
 
     def stamp(self):
-        n = self.netlist.n
+        n = self.circuit.n
         
-        self.netlist.A[n + self.index, self.start_node] =  1
-        self.netlist.A[n + self.index,   self.end_node] = -1
-        self.netlist.A[self.start_node, n + self.index] =  1
-        self.netlist.A[self.end_node,   n + self.index] = -1
+        self.circuit.A[n + self.index, self.start_node] =  1
+        self.circuit.A[n + self.index,   self.end_node] = -1
+        self.circuit.A[self.start_node, n + self.index] =  1
+        self.circuit.A[self.end_node,   n + self.index] = -1
 
         # Stamp the b vector for this voltage source
-        self.netlist.b[n + self.index] = self.symbol
+        self.circuit.b[n + self.index] = self.symbol
 
         # Stamp the unknown current accross the voltage source in the x 'state' vector
-        self.netlist.x[n + self.index] = sp.symbols(f'i{self.symbol}')
+        self.circuit.x[n + self.index] = sp.symbols(f'i{self.symbol}')
 
 
 class ExternalVoltageSource(VoltageSource):
@@ -101,8 +101,8 @@ class CurrentSource(Component):
         super().__init__(start_node, end_node, symbol, value)
 
     def stamp(self):
-        self.netlist.b[self.start_node] -= self.symbol
-        self.netlist.b[self.end_node  ] += self.symbol
+        self.circuit.b[self.start_node] -= self.symbol
+        self.circuit.b[self.end_node  ] += self.symbol
 
 class IdealOPA(Component):
     def __init__(self, start_node, end_node, output_node, symbol, index):
@@ -114,11 +114,11 @@ class IdealOPA(Component):
         self.index = index
 
     def stamp(self):
-        n = self.netlist.n 
+        n = self.circuit.n 
         
-        self.netlist.A[self.output_node, n + self.index] =  1
-        self.netlist.A[n + self.index,  self.start_node] =  1
-        self.netlist.A[n + self.index,    self.end_node] = -1
+        self.circuit.A[self.output_node, n + self.index] =  1
+        self.circuit.A[n + self.index,  self.start_node] =  1
+        self.circuit.A[n + self.index,    self.end_node] = -1
 
 class Transformer(Component):
     def __init__(self, start_node, end_node, start_node_2, end_node_2, symbol, value):
@@ -128,19 +128,19 @@ class Transformer(Component):
         #here, the value of the transformer is the wires ratio
 
     def stamp(self):
-        n = self.netlist.n
+        n = self.circuit.n
 
-        self.netlist.A[self.start_node,   n + self.index] =  1
-        self.netlist.A[self.end_node,     n + self.index] = -1
-        self.netlist.A[self.start_node_2, n + self.index] = self.symbol
-        self.netlist.A[self.end_node_2,   n + self.index] = -self.symbol
+        self.circuit.A[self.start_node,   n + self.index] =  1
+        self.circuit.A[self.end_node,     n + self.index] = -1
+        self.circuit.A[self.start_node_2, n + self.index] = self.symbol
+        self.circuit.A[self.end_node_2,   n + self.index] = -self.symbol
 
-        self.netlist.A[n + self.index,   self.start_node] =  1
-        self.netlist.A[n + self.index,     self.end_node] = -1
-        self.netlist.A[n + self.index, self.start_node_2] = -self.symbol
-        self.netlist.A[n + self.index,   self.end_node_2] = self.symbol
+        self.circuit.A[n + self.index,   self.start_node] =  1
+        self.circuit.A[n + self.index,     self.end_node] = -1
+        self.circuit.A[n + self.index, self.start_node_2] = -self.symbol
+        self.circuit.A[n + self.index,   self.end_node_2] = self.symbol
 
-        self.netlist.b[n + self.index] = sp.symbols(f'i{self.symbol}')
+        self.circuit.b[n + self.index] = sp.symbols(f'i{self.symbol}')
 
 class Gyrator(Component):
     def __init__(self, start_node, end_node, start_node_2, end_node_2, symbol, value):
@@ -150,17 +150,17 @@ class Gyrator(Component):
         #here, the value of the gyrator is the transconductance
 
     def stamp(self):
-        n = self.netlist.n
+        n = self.circuit.n
 
-        self.netlist.A[self.start_node, self.start_node_2] = self.symbol
-        self.netlist.A[self.start_node,   self.end_node_2] = -self.symbol
-        self.netlist.A[self.end_node,   self.start_node_2] = -self.symbol
-        self.netlist.A[self.end_node,     self.end_node_2] = self.symbol
+        self.circuit.A[self.start_node, self.start_node_2] = self.symbol
+        self.circuit.A[self.start_node,   self.end_node_2] = -self.symbol
+        self.circuit.A[self.end_node,   self.start_node_2] = -self.symbol
+        self.circuit.A[self.end_node,     self.end_node_2] = self.symbol
 
-        self.netlist.A[self.start_node_2, self.start_node] = -self.symbol
-        self.netlist.A[self.start_node_2,   self.end_node] = self.symbol
-        self.netlist.A[self.end_node_2,   self.start_node] = self.symbol
-        self.netlist.A[self.end_node_2,     self.end_node] = -self.symbol
+        self.circuit.A[self.start_node_2, self.start_node] = -self.symbol
+        self.circuit.A[self.start_node_2,   self.end_node] = self.symbol
+        self.circuit.A[self.end_node_2,   self.start_node] = self.symbol
+        self.circuit.A[self.end_node_2,     self.end_node] = -self.symbol
 
 
 

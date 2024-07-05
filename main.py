@@ -9,9 +9,9 @@ Created on Thur Jul 04 17:27:53 2024
 from scipy.signal import freqs
 import numpy as np
 import sympy as sp
-from netlist_class import Netlist, plotTransfertFunction
+from netlist_class import Circuit, plotTransfertFunction
 
-#declaration of the netlist
+#declaration of the circuit
 '''
 # example with a LC filter of cutoff frequency 520 Hz
 inputList  =   ['Vin 1 0 1',
@@ -39,30 +39,27 @@ inputList  =   ['Vin 1 0 1',
                 'R4 6 7 4.7e3',
                 'R5 7 0 1']
 
+#declare a circuit object
+circuit = Circuit(inputList)
 
-
-
-
-netlist = Netlist(inputList)
-
-netlist.display_components()
-netlist.stamp_system()
-netlist.print_system()
+circuit.display_components()
+circuit.stamp_system()
+circuit.print_system()
 
 # Solve the system
 
 #put a timer to see how long it takes to solve the system
 
-#netlist.solve_system(simplify=False, use_symengine=False)
+#circuit.solve_system(simplify=False, use_symengine=False)
 
 
 #print('\n\nx solution vector:\n')
-#sp.pprint(sp.Eq(netlist.x, netlist.x_solution))
+#sp.pprint(sp.Eq(circuit.x, circuit.x_solution))
 
 
 # DONT FORGET TO CHANGE THE OUTPUT AND INPUT NODES ACCORDING TO YOUR NETLIST !
 # Get the symbolic transfer function between the output node and the input node
-H = netlist.get_symbolic_transfert_function(output_node = 5, input_node = 1)
+H = circuit.get_symbolic_transfert_function(output_node = 5, input_node = 1)
 
 print('\n\nSymbolic transfer function:\n')
 sp.pprint(H.sympyExpr)

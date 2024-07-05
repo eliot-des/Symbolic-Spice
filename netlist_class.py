@@ -5,14 +5,14 @@ import matplotlib.pyplot as plt
 from component_class import AdmittanceComponent, Resistance, Capacitor, Inductance, VoltageSource, ExternalVoltageSource, CurrentSource, IdealOPA
 import time 
     
-class Netlist:
+class Circuit:
     """
-    Represents a netlist, which is a collection of electronic components and their connections.
+    Represents a circuit with his associated netlist, which is a collection of electronic components and their connections.
     """
 
     def __init__(self, inputList):
         """
-        Initializes a Netlist object.
+        Initializes a Circuit object.
 
         Parameters:
         - inputList (list): A list of strings representing the components in the netlist.
@@ -31,7 +31,7 @@ class Netlist:
         self.n = self.get_nodes_nbr()   # Number of nodes including the ground node
 
         for component in self.components:
-            component.netlist = self
+            component.circuit = self
 
 
     def create_component_list(self, inputList):
@@ -205,19 +205,19 @@ class Netlist:
         else:
             input_node_symbol = 0
         
-        #if there is capacitors or inductors in the netlist, the symbolic transfer function can be factorized:
+        #if there is capacitors or inductors in the circuit, the symbolic transfer function can be factorized:
         if self.capacitors or self.inductors:
             #return the symbolic transfer function into the standard canonical form, where the laplace variable's' is the polynomial variable
             H =  sp.cancel(sp.simplify(output_node_symbol / input_node_symbol), sp.symbols('s'))
         else :
             H = sp.simplify(output_node_symbol / input_node_symbol)
 
-        return NetlistSymbolicTransferFunction(H, self.components)
+        return CircuitSymbolicTransferFunction(H, self.components)
 
     def display_components(self, components_list = None):
         """
-        Print the netlist's components. By default print all the components.
-        The argument components_list can be the voltageSources, currentSources or passiveComponents of the netlist.
+        Print the circuit's components. By default print all the components.
+        The argument components_list can be the voltageSources, currentSources or passiveComponents of the circuit.
         """
         if components_list is None:
             components_list = self.components
@@ -244,10 +244,10 @@ def extract_symbolic_analog_filter_coefficients(H, polynomial_variable = sp.symb
 
 
 
-class NetlistSymbolicTransferFunction:
+class CircuitSymbolicTransferFunction:
     '''
-    This class is used to extract the symbolic transfer function of a netlist, 
-    and must contain all the components attributes of the given netlist associated 
+    This class is used to extract the symbolic transfer function of a circuit object, 
+    and must contain all the components attributes of the given circuit associated 
     (in order to do the substitutions of the components values in the symbolic transfer function)
 
     I want to be able to still use the sympy library to manipulate the symbolic transfer function, 
