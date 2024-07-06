@@ -5,4 +5,4 @@ The goal of Symbolic-spice is to provide a simple solution to analyse linear cir
 
 ## Under the hood of Symbolic-Spice
 
-Symbolic-spice relies on the Modified Nodal Analysis, introduced by [Chen-When Ho and al.](https://cseweb.ucsd.edu/classes/fa04/cse245/Reading/MNA.pdf), in order to automaticaly right down the equations governing the linear electronic circuit.
+Symbolic-spice relies on the Modified Nodal Analysis, introduced by [Chen-When Ho and al.](https://cseweb.ucsd.edu/classes/fa04/cse245/Reading/MNA.pdf), in order to automaticaly right down the equations governing the linear electronic circuit, in a symbolic way thanks to the [sympy](https://github.com/sympy/sympy) library.
