@@ -161,7 +161,7 @@ class Circuit:
         Returns:
         - None
         """
-        if not hasattr(self, 'A') and not hasattr(self, 'b') and not hasattr(self, 'x'):
+        if not hasattr(self, 'A') or not hasattr(self, 'b') or not hasattr(self, 'x'):
             self.stamp_system()
 
 
@@ -264,21 +264,41 @@ class CircuitSymbolicTransferFunction:
         self.a = sp.Poly(denum, sp.symbols('s')).all_coeffs()
         return self.b, self.a
 
-    def numerical_analog_filter_coefficients(self, polynomial_variable=sp.symbols('s')):
+    def numerical_analog_filter_coefficients(self, component_values=None, polynomial_variable=sp.symbols('s')):
 
         if self.b is None or self.a is None:
             self.b, self.a = self.sympyExpr.extract_symbolic_analog_filter_coefficients()
            
-        substitutions = {component.symbol: component.value for component in self.components}
+        # If no array/dictionary is provided, return the coefficients with the values defined in the netlist
+        if component_values is None:
+            substitutions = {component.symbol: component.value for component in self.components}
 
-        #convert sympy float object to numpy float object !!!
-        num_substituted = np.array([float(coeff.subs(substitutions)) for coeff in self.b])
-        den_substituted = np.array([float(coeff.subs(substitutions)) for coeff in self.a])
+            num_substituted = np.array([float(coeff.subs(substitutions)) for coeff in self.b])
+            den_substituted = np.array([float(coeff.subs(substitutions)) for coeff in self.a])
 
-        #num_substituted = np.array([coeff.subs(substitutions) for coeff in self.b])
-        #den_substituted = np.array([coeff.subs(substitutions) for coeff in self.a])
-        return num_substituted, den_substituted
-    
+            return num_substituted, den_substituted
+
+        else:
+            # If arrays/dicitionnaries are provided
+            num_list = []
+            den_list = []
+
+            max_length = max(len(v) if isinstance(v, np.ndarray) else 1 for v in component_values.values())
+
+            for i in range(max_length):
+                substitutions = {
+                    component.symbol: component_values.get(str(component.symbol), component.value)[i] if isinstance(component_values.get(str(component.symbol)), np.ndarray) else component.value
+                    for component in self.components
+                }
+
+                num_substituted = [float(coeff.subs(substitutions)) for coeff in self.b]
+                den_substituted = [float(coeff.subs(substitutions)) for coeff in self.a]
+
+                num_list.append(num_substituted)
+                den_list.append(den_substituted)
+
+            return np.array(num_list), np.array(den_list)    
+
     def __str__(self):
         return str(self.sympyExpr)
     
@@ -294,7 +314,7 @@ class CircuitSymbolicTransferFunction:
 
 
 
-def plotTransfertFunction(f, h, title, semilogx=True, dB=True, phase=True):
+def plotTransfertFunction(f, h, title=None, semilogx=True, dB=True, phase=True):
     ''' 
     Plot the frequency response of the filter
 
@@ -308,6 +328,8 @@ def plotTransfertFunction(f, h, title, semilogx=True, dB=True, phase=True):
     - phase (bool): If True, plot the phase in radians
     '''
 
+    h = np.atleast_2d(h)
+    
     if dB: 
         h_mag =  20 * np.log10(abs(h))
         scale='dB'
@@ -318,9 +340,12 @@ def plotTransfertFunction(f, h, title, semilogx=True, dB=True, phase=True):
     fig, ax = plt.subplots(2 if phase else 1, 1, sharex=True, layout='tight')
     ax = np.atleast_1d(ax)
 
-    ax[0].plot(f, h_mag)
+    for h_mag_array in h_mag:
+        ax[0].plot(f, h_mag_array)
 
-    ax[0].set_title(title)
+    if title is not None:
+        ax[0].set_title(title)
+
     ax[0].set_ylabel(f'Magnitude [{scale}]')
     ax[0].grid(which='both')
     ax[-1].set_xticks([1, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000])
@@ -332,7 +357,8 @@ def plotTransfertFunction(f, h, title, semilogx=True, dB=True, phase=True):
         ax[0].set_xscale('log')
 
     if phase:
-        ax[1].plot(f, np.angle(h))
+        for h_array in h:
+            ax[1].plot(f, np.angle(h_array))
         
         ax[1].set_ylabel('Phase [radians]')
         ax[1].set_xlabel('Frequency [Hz]')

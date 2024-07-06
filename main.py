@@ -54,8 +54,8 @@ print('\n\nx solution vector:\n')
 sp.pprint(sp.Eq(circuit.x, circuit.x_solution))
 '''
 
-# DONT FORGET TO CHANGE THE OUTPUT AND INPUT NODES ACCORDING TO YOUR NETLIST !
 # Get the symbolic transfer function between the output node and the input node
+# DONT FORGET TO CHANGE THE OUTPUT AND INPUT NODES ACCORDING TO YOUR NETLIST !
 H = circuit.get_symbolic_transfert_function(output_node = 5, input_node = 1)
 
 print('\n\nSymbolic transfer function:\n')
@@ -66,13 +66,20 @@ b, a = H.symbolic_analog_filter_coefficients()
 print(f'\nb coefficients :{b}')
 print(f'a coefficients :{a}')
 
-b_num, a_num = H.numerical_analog_filter_coefficients()
+
+# Get numerical coefficients for the range of R4 values
+R4_values = np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3])
+component_values = {'R4': R4_values}
+b_num, a_num = H.numerical_analog_filter_coefficients(component_values)
 
 # Plot the analog frequency response of the filter
-f = np.arange(20, 20e3)
+f = np.arange(1, 20e3)
 w = 2*np.pi*f
-_, h = freqs(b_num, a_num, worN=w)
+#_, h = freqs(b_num, a_num, worN=w)
 
-plotTransfertFunction(f, h, 'Analog frequency response', semilogx=True, dB=True, phase=True)
+# Compute the frequency response for each value of R4
+h = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(R4_values))])
+
+plotTransfertFunction(f, h, semilogx=True, dB=True, phase=True)
 
 
