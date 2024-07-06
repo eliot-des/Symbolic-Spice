@@ -27,7 +27,7 @@ inputList  =   ['Vin 1 0 1',
                 'R2 2 0 2359',
                 'R3 3 0 8']
 
-# example with the tone stage of the MXR Distortion +
+# example with the "tone" stage of the MXR Distortion +
 inputList  =   ['Vin 1 0 1',
                 'C1 1 0 1e-9',
                 'C2 1 2 10e-9',
@@ -35,7 +35,8 @@ inputList  =   ['Vin 1 0 1',
                 'R2 3 0 1e6',
                 'OP1 3 4 5',
                 'R3 4 5 1e6',
-                'C3 4 6 47e-9',
+                'C3 4 5 10e-12',
+                'C4 4 6 47e-9',
                 'R4 6 7 4.7e3',
                 'R5 7 0 1']
 
@@ -58,8 +59,10 @@ sp.pprint(sp.Eq(circuit.x, circuit.x_solution))
 # DONT FORGET TO CHANGE THE OUTPUT AND INPUT NODES ACCORDING TO YOUR NETLIST !
 H = circuit.get_symbolic_transfert_function(output_node = 5, input_node = 1)
 
+'''
 print('\n\nSymbolic transfer function:\n')
 sp.pprint(H.sympyExpr)
+'''
 
 b, a = H.symbolic_analog_filter_coefficients()
 
@@ -68,18 +71,18 @@ print(f'a coefficients :{a}')
 
 
 # Get numerical coefficients for the range of R4 values
-R4_values = np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3])
-component_values = {'R4': R4_values}
-b_num, a_num = H.numerical_analog_filter_coefficients(component_values)
+component_values = {'C3': np.array([10e-12, 22e-12, 50e-12]),
+                    'R4': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3])}
+b_num, a_num =  H.numerical_analog_filter_coefficients(component_values)
 
-# Plot the analog frequency response of the filter
 f = np.arange(1, 20e3)
 w = 2*np.pi*f
-#_, h = freqs(b_num, a_num, worN=w)
 
-# Compute the frequency response for each value of R4
-h = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(R4_values))])
+h = []
+for i in range(len(b_num)):
+    h.append([freqs(b_num[i][j], a_num[i][j], worN=w)[1] for j in range(len(a_num[i]))])
+h = np.array(h)
+
 
 plotTransfertFunction(f, h, semilogx=True, dB=True, phase=True)
-
 
