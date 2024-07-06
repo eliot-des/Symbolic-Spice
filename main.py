@@ -9,7 +9,7 @@ Created on Thur Jul 04 17:27:53 2024
 from scipy.signal import freqs
 import numpy as np
 import sympy as sp
-from netlist_class import Circuit, plotTransfertFunction
+from symbolicspice import Circuit, plotTransfertFunction
 
 #declaration of the circuit
 '''

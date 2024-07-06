@@ -3,7 +3,7 @@ import numpy as np
 import itertools
 import matplotlib.pyplot as plt
 
-from component_class import AdmittanceComponent, Resistance, Capacitor, Inductance, VoltageSource, ExternalVoltageSource, CurrentSource, IdealOPA
+from components import AdmittanceComponent, Resistance, Capacitor, Inductance, VoltageSource, ExternalVoltageSource, CurrentSource, IdealOPA
 import time 
     
 class Circuit:
