@@ -319,20 +319,25 @@ class CircuitSymbolicTransferFunction:
 
 def plotTransfertFunction(f, h, title=None, semilogx=True, dB=True, phase=True):
     ''' 
-    Plot the frequency response of the filter
+    Plot the frequency response of the filter.
 
     Parameters:
     - f (array): frequency array (Hz)
-    - h (array): frequency response array (complex)
+    - h (array): frequency response array (complex) -> Max 3D array!
     - title (str): title of the plot
     - semilogx (bool): If True, use a logarithmic scale for the x-axis
     - semilogy (bool): If True, use a logarithmic scale for the y-axis
     - dB (bool): If True, plot the magnitude in dB
     - phase (bool): If True, plot the phase in radians
     '''
+    
 
     if h.ndim > 3:
         raise ValueError("The input array h must have at most 3 dimensions.")
+
+    #default colors and linestyles 
+    color = plt.cm.tab10(np.linspace(0, 1, 10)) #RdYlBu, plasma, viridis, inferno, magma, cividis
+    linestyle = ['-', '--', '-.', ':']
 
     h = np.atleast_3d(h)
 
@@ -346,9 +351,9 @@ def plotTransfertFunction(f, h, title=None, semilogx=True, dB=True, phase=True):
     fig, ax = plt.subplots(2 if phase else 1, 1, sharex=True, layout='tight')
     ax = np.atleast_1d(ax)
 
-    for h_slice in h_mag:
-        for h_mag_array in h_slice:
-            ax[0].plot(f, h_mag_array)
+    for i, h_slice in enumerate(h_mag):
+        for j, h_mag_array in enumerate(h_slice):
+            ax[0].plot(f, h_mag_array, color=color[j % 10], linestyle=linestyle[i % 4])
 
     if title is not None:
         ax[0].set_title(title)
@@ -364,9 +369,9 @@ def plotTransfertFunction(f, h, title=None, semilogx=True, dB=True, phase=True):
         ax[0].set_xscale('log')
 
     if phase:
-        for h_slice in h:
-            for h_array in h_slice:
-                ax[1].plot(f, np.angle(h_array))
+        for i, h_slice in enumerate(h):
+            for j, h_array in enumerate(h_slice):
+                ax[1].plot(f, np.angle(h_array), color=color[j % 10], linestyle=linestyle[i % 4])
         
         ax[1].set_ylabel('Phase [radians]')
         ax[1].set_xlabel('Frequency [Hz]')
@@ -378,9 +383,3 @@ def plotTransfertFunction(f, h, title=None, semilogx=True, dB=True, phase=True):
 
     plt.show()
 
-
-    def compute_frequency_response(b_num, a_num, w):
-        h = []
-        for i in range(len(b_num)):
-            h.append([freqs(b_num[i][j], a_num[i][j], worN=w)[1] for j in range(len(a_num[i]))])
-        return np.array(h)
