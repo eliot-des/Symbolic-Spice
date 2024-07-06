@@ -161,10 +161,3 @@ class Gyrator(Component):
         self.circuit.A[self.start_node_2,   self.end_node] = self.symbol
         self.circuit.A[self.end_node_2,   self.start_node] = self.symbol
         self.circuit.A[self.end_node_2,     self.end_node] = -self.symbol
-
-
-
-
-
-
-

@@ -46,16 +46,13 @@ circuit.display_components()
 circuit.stamp_system()
 circuit.print_system()
 
-# Solve the system
+'''
+#Solve the system
+circuit.solve_system(simplify=False, use_symengine=False)
 
-#put a timer to see how long it takes to solve the system
-
-#circuit.solve_system(simplify=False, use_symengine=False)
-
-
-#print('\n\nx solution vector:\n')
-#sp.pprint(sp.Eq(circuit.x, circuit.x_solution))
-
+print('\n\nx solution vector:\n')
+sp.pprint(sp.Eq(circuit.x, circuit.x_solution))
+'''
 
 # DONT FORGET TO CHANGE THE OUTPUT AND INPUT NODES ACCORDING TO YOUR NETLIST !
 # Get the symbolic transfer function between the output node and the input node
