@@ -35,6 +35,7 @@ inputList  =   ['Vin 1 0 1',
                 'R2 3 0 1e6',
                 'OP1 3 4 5',
                 'R3 4 5 1e6',
+                'C4 4 5 22e-12',
                 'C3 4 6 47e-9',
                 'R4 6 7 4.7e3',
                 'R5 7 0 1']
@@ -68,17 +69,17 @@ print(f'a coefficients :{a}')
 
 
 # Get numerical coefficients for the range of R4 values
-R4_values = np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3])
-component_values = {'R4': R4_values}
-b_num, a_num = H.numerical_analog_filter_coefficients(component_values)
+#component_values = {'R4':np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3])}#,'C4': np.array([22e-12, 47e-12, 100e-12, 220e-12, 470e-12])} 
+b_num, a_num = H.numerical_analog_filter_coefficients()
+
 
 # Plot the analog frequency response of the filter
 f = np.arange(1, 20e3)
 w = 2*np.pi*f
-#_, h = freqs(b_num, a_num, worN=w)
+_, h = freqs(b_num, a_num, worN=w)
 
 # Compute the frequency response for each value of R4
-h = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(R4_values))])
+h = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(a_num))])
 
 plotTransfertFunction(f, h, semilogx=True, dB=True, phase=True)
 
