@@ -247,9 +247,13 @@ def extract_symbolic_analog_filter_coefficients(H, polynomial_variable = sp.symb
 
 class CircuitSymbolicTransferFunction:
     '''
-    This class is used to extract the symbolic transfer function of a circuit object, 
-    and must contain all the components attributes of the given circuit associated 
-    (in order to do the substitutions of the components values in the symbolic transfer function)
+    This class is used when using the get_symbolic_transfert_function() method of the Circuit class,
+    in order to extract the symbolic transfer function of a circuit object, between two nodes. 
+    The object created must contain all the components attributes of the given circuit associated 
+    (in order to do the substitutions of the components values in the symbolic transfer function).
+
+    Normally, you should not need to use this class directly, but only through the 
+    get_symbolic_transfert_function() method of the Circuit class.
 
     I want to be able to still use the sympy library to manipulate the symbolic transfer function, 
     that's why I override the __getattr__ method to get the attribute of the symbolic transfer function directly
@@ -257,7 +261,7 @@ class CircuitSymbolicTransferFunction:
     def __init__(self, H, components):
         self.sympyExpr = H
         self.components = components
-        self.b, self.a = None, None
+        self.b, self.a = None, None  #Symbolic analog filter coefficients
 
     def symbolic_analog_filter_coefficients(self):
         num, denum = sp.fraction(self.sympyExpr)
