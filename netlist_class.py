@@ -1,5 +1,6 @@
 import sympy as sp
 import numpy as np
+import itertools
 import matplotlib.pyplot as plt
 
 from component_class import AdmittanceComponent, Resistance, Capacitor, Inductance, VoltageSource, ExternalVoltageSource, CurrentSource, IdealOPA
@@ -265,39 +266,41 @@ class CircuitSymbolicTransferFunction:
         return self.b, self.a
 
     def numerical_analog_filter_coefficients(self, component_values=None, polynomial_variable=sp.symbols('s')):
-
         if self.b is None or self.a is None:
-            self.b, self.a = self.sympyExpr.extract_symbolic_analog_filter_coefficients()
-           
-        # If no array/dictionary is provided, return the coefficients with the values defined in the netlist
+            self.b, self.a = self.symbolic_analog_filter_coefficients()
+        
         if component_values is None:
-            substitutions = {component.symbol: component.value for component in self.components}
+            component_values = {}
 
-            num_substituted = np.array([float(coeff.subs(substitutions)) for coeff in self.b])
-            den_substituted = np.array([float(coeff.subs(substitutions)) for coeff in self.a])
+        # Generate all combinations of provided component values
+        #reorder the components values in an increasing order of the len of the values array ? Don't know...
+        #component_values = {key: value for key, value in sorted(component_values.items(), key=lambda item: len(item[1]))}
 
-            return num_substituted, den_substituted
+        keys, values = zip(*component_values.items())
+        combinations = list(itertools.product(*values))
 
-        else:
-            # If arrays/dicitionnaries are provided
-            num_list = []
-            den_list = []
+        coeffs_num = []
+        coeffs_den = []
 
-            max_length = max(len(v) if isinstance(v, np.ndarray) else 1 for v in component_values.values())
+        for combination in combinations:
+            substitutions = {
+                component.symbol: combination[keys.index(str(component.symbol))] 
+                if str(component.symbol) in keys else component.value 
+                for component in self.components
+            }
 
-            for i in range(max_length):
-                substitutions = {
-                    component.symbol: component_values.get(str(component.symbol), component.value)[i] if isinstance(component_values.get(str(component.symbol)), np.ndarray) else component.value
-                    for component in self.components
-                }
+            num_substituted = [float(coeff.subs(substitutions)) for coeff in self.b]
+            den_substituted = [float(coeff.subs(substitutions)) for coeff in self.a]
 
-                num_substituted = [float(coeff.subs(substitutions)) for coeff in self.b]
-                den_substituted = [float(coeff.subs(substitutions)) for coeff in self.a]
+            coeffs_num.append(num_substituted)
+            coeffs_den.append(den_substituted)
 
-                num_list.append(num_substituted)
-                den_list.append(den_substituted)
+        # Reshape the results
+        shape = [len(values) for values in component_values.values()] + [len(self.b)]
+        coeffs_num = np.array(coeffs_num).reshape(shape)
+        coeffs_den = np.array(coeffs_den).reshape(shape)
 
-            return np.array(num_list), np.array(den_list)    
+        return coeffs_num, coeffs_den
 
     def __str__(self):
         return str(self.sympyExpr)
@@ -328,8 +331,11 @@ def plotTransfertFunction(f, h, title=None, semilogx=True, dB=True, phase=True):
     - phase (bool): If True, plot the phase in radians
     '''
 
-    h = np.atleast_2d(h)
-    
+    if h.ndim > 3:
+        raise ValueError("The input array h must have at most 3 dimensions.")
+
+    h = np.atleast_3d(h)
+
     if dB: 
         h_mag =  20 * np.log10(abs(h))
         scale='dB'
@@ -340,8 +346,9 @@ def plotTransfertFunction(f, h, title=None, semilogx=True, dB=True, phase=True):
     fig, ax = plt.subplots(2 if phase else 1, 1, sharex=True, layout='tight')
     ax = np.atleast_1d(ax)
 
-    for h_mag_array in h_mag:
-        ax[0].plot(f, h_mag_array)
+    for h_slice in h_mag:
+        for h_mag_array in h_slice:
+            ax[0].plot(f, h_mag_array)
 
     if title is not None:
         ax[0].set_title(title)
@@ -357,8 +364,9 @@ def plotTransfertFunction(f, h, title=None, semilogx=True, dB=True, phase=True):
         ax[0].set_xscale('log')
 
     if phase:
-        for h_array in h:
-            ax[1].plot(f, np.angle(h_array))
+        for h_slice in h:
+            for h_array in h_slice:
+                ax[1].plot(f, np.angle(h_array))
         
         ax[1].set_ylabel('Phase [radians]')
         ax[1].set_xlabel('Frequency [Hz]')
@@ -369,3 +377,10 @@ def plotTransfertFunction(f, h, title=None, semilogx=True, dB=True, phase=True):
         ax[1].grid(which='both')
 
     plt.show()
+
+
+    def compute_frequency_response(b_num, a_num, w):
+        h = []
+        for i in range(len(b_num)):
+            h.append([freqs(b_num[i][j], a_num[i][j], worN=w)[1] for j in range(len(a_num[i]))])
+        return np.array(h)
