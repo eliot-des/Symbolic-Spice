@@ -27,15 +27,16 @@ inputList  =   ['Vin 1 0 1',
                 'R2 2 0 2359',
                 'R3 3 0 8']
 
-# example with the "tone" stage of the MXR Distortion +
+# example with the "tone" stage architecture of the DOD 250 overdrive pedal
+# Values depends on the schematic found on the internet (but topology is correct)
 inputList  =   ['Vin 1 0 1',
-                'C1 1 0 1e-9',
+                'C1 1 0 0.01e-9',
                 'C2 1 2 10e-9',
                 'R1 2 3 10e3',
-                'R2 3 0 1e6',
+                'R2 3 0 470e3',
                 'OP1 3 4 5',
                 'R3 4 5 1e6',
-                'C3 4 5 10e-12',
+                'C3 4 5 25e-12',
                 'C4 4 6 47e-9',
                 'R4 6 7 4.7e3',
                 'R5 7 0 1']
@@ -43,12 +44,15 @@ inputList  =   ['Vin 1 0 1',
 #declare a circuit object
 circuit = Circuit(inputList)
 
-circuit.display_components()
+#circuit.display_components()
 circuit.stamp_system()
 circuit.print_system()
 
 '''
-#Solve the system
+# Solve the system :
+# The Code in this block can be useful if you want 
+# to see the symbolic solution of the x vector.
+
 circuit.solve_system(simplify=False, use_symengine=False)
 
 print('\n\nx solution vector:\n')
@@ -69,20 +73,37 @@ b, a = H.symbolic_analog_filter_coefficients()
 print(f'\nb coefficients :{b}')
 print(f'a coefficients :{a}')
 
-
-# Get numerical coefficients for the range of R4 values
-component_values = {'C3': np.array([10e-12, 22e-12, 50e-12]),
-                    'R4': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3])}
-b_num, a_num =  H.numerical_analog_filter_coefficients(component_values)
-
 f = np.arange(1, 20e3)
 w = 2*np.pi*f
 
-h = []
-for i in range(len(b_num)):
-    h.append([freqs(b_num[i][j], a_num[i][j], worN=w)[1] for j in range(len(a_num[i]))])
-h = np.array(h)
+
+# Get numerical coefficients for the range of R4 values and C3 values.
+# You can also not given a component_values argument to the function.
+# In this case, the function will take the default values of the components set in the circuit object.
+#3D Case :
+component_values = {'C3': np.array([10e-12, 22e-12, 50e-12]),
+                    'R4': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3])}
+b_num, a_num =  H.numerical_analog_filter_coefficients(component_values)
+print(b_num.shape)
+
+h = np.array([[freqs(b_num[i][j], a_num[i][j], worN=w)[1] for j in range(len(a_num[i]))] for i in range(len(b_num))])
+plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, phase=True)
+
+'''
+#2D Case
+component_values = {'R4': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3])}
+b_num, a_num =  H.numerical_analog_filter_coefficients(component_values)
+
+h = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(a_num))])
+plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, phase=True)
 
 
-plotTransfertFunction(f, h, semilogx=True, dB=True, phase=True)
+#1D Case
+b_num, a_num =  H.numerical_analog_filter_coefficients()
+
+_, h = freqs(b_num, a_num, worN=w)
+plotTransfertFunction(f, h, legend='test', semilogx=True, dB=True, phase=True)
+'''
+
+
 
