@@ -253,11 +253,10 @@ class CircuitSymbolicTransferFunction:
     (in order to do the substitutions of the components values in the symbolic transfer function).
 
     Normally, you should not need to use this class directly, but only through the 
-    get_symbolic_transfert_function() method of the Circuit class.
-
-    I want to be able to still use the sympy library to manipulate the symbolic transfer function, 
-    that's why I override the __getattr__ method to get the attribute of the symbolic transfer function directly
+    get_symbolic_transfert_function() method of the Circuit class, that will return an object of 
+    this class.
     '''
+
     def __init__(self, H, components):
         self.sympyExpr = H
         self.components = components
@@ -270,41 +269,70 @@ class CircuitSymbolicTransferFunction:
         return self.b, self.a
 
     def numerical_analog_filter_coefficients(self, component_values=None, polynomial_variable=sp.symbols('s')):
+        '''
+        Return the numerical coefficients of the analog filter transfer function.
+
+        Parameters:
+        - component_values (dict):  A dictionary of component values. The keys are the component symbols, and the values are the component values.
+                        -If component_values is None, the default values of the components set in the Circuit object will be used.
+                        
+                        -If component_values is a dictionary with one key and a 1D array key values, 
+                        the function will return the a and b numerical coefficients for each value of the array, in a 2D array.
+                        
+                        -If component_values is a dictionary with multiple keys and with their associated 1D array key values,
+                        the function will return the a and b numerical coefficients for each combination of values in a (N+1)-D array,
+                        where N is the number of keys in the dictionary.
+                        
+        - polynomial_variable (symbol): The polynomial variable of the transfer function. Default is 's'. 
+                        Note that this variable must be the same as the one used in the symbolic transfer function.
+
+        Returns:
+        - b_num (list): The numerator coefficients of the transfer function.
+        - a_num (list): The denominator coefficients of the transfer function.
+        '''
+
         if self.b is None or self.a is None:
             self.b, self.a = self.symbolic_analog_filter_coefficients()
         
         if component_values is None:
-            component_values = {}
+            component_values = {component.symbol: component.value for component in self.components}
 
-        # Generate all combinations of provided component values
-        #reorder the components values in an increasing order of the len of the values array ? Don't know...
-        #component_values = {key: value for key, value in sorted(component_values.items(), key=lambda item: len(item[1]))}
+            b_num = np.array([float(coeff.subs(component_values)) for coeff in self.b])
+            a_num = np.array([float(coeff.subs(component_values)) for coeff in self.a])
 
-        keys, values = zip(*component_values.items())
-        combinations = list(itertools.product(*values))
+            return b_num, a_num
 
-        coeffs_num = []
-        coeffs_den = []
+        else:
+            # Generate all combinations of provided component values
+            #reorder the components values in an increasing order of the len of the values array ? Don't know... If so :
+            #component_values = {key: value for key, value in sorted(component_values.items(), key=lambda item: len(item[1]))}
 
-        for combination in combinations:
-            substitutions = {
-                component.symbol: combination[keys.index(str(component.symbol))] 
-                if str(component.symbol) in keys else component.value 
-                for component in self.components
-            }
+            keys, values = zip(*component_values.items())
+            combinations = list(itertools.product(*values))
 
-            num_substituted = [float(coeff.subs(substitutions)) for coeff in self.b]
-            den_substituted = [float(coeff.subs(substitutions)) for coeff in self.a]
+            b_num = []
+            a_num = []
+            
+            for combination in combinations:
+                substitutions = {
+                    component.symbol: combination[keys.index(str(component.symbol))] 
+                    if str(component.symbol) in keys else component.value 
+                    for component in self.components
+                }
 
-            coeffs_num.append(num_substituted)
-            coeffs_den.append(den_substituted)
+                b_num_temp = [float(coeff.subs(substitutions)) for coeff in self.b]
+                a_num_temp = [float(coeff.subs(substitutions)) for coeff in self.a]
 
-        # Reshape the results
-        shape = [len(values) for values in component_values.values()] + [len(self.b)]
-        coeffs_num = np.array(coeffs_num).reshape(shape)
-        coeffs_den = np.array(coeffs_den).reshape(shape)
+                b_num.append(b_num_temp)
+                a_num.append(a_num_temp)
+            
+            # Reshape the results
+            shape = [len(values) for values in component_values.values()] + [len(self.b)]
 
-        return coeffs_num, coeffs_den
+            b_num = np.array(b_num).reshape(shape)
+            a_num = np.array(a_num).reshape(shape)
+        
+            return b_num, a_num
 
     def __str__(self):
         return str(self.sympyExpr)
@@ -313,6 +341,10 @@ class CircuitSymbolicTransferFunction:
         return repr(self.sympyExpr)
     
     def __getattr__(self, name):
+        '''
+        I want to be able to still use the sympy library to manipulate the symbolic transfer function, 
+        that's why I override the __getattr__ method to get the attribute of the symbolic transfer function directly
+        '''
         return getattr(self.sympyExpr, name)
     
     def __call__(self, *args, **kwargs):
@@ -321,13 +353,17 @@ class CircuitSymbolicTransferFunction:
 
 
 
-def plotTransfertFunction(f, h, title=None, semilogx=True, dB=True, phase=True):
+def plotTransfertFunction(f, h, legend=None, title=None, semilogx=True, dB=True, phase=True):
     ''' 
     Plot the frequency response of the filter.
 
     Parameters:
-    - f (array): frequency array (Hz)
+    - f (array): frequency array (Hz) -> 1D array
     - h (array): frequency response array (complex) -> Max 3D array!
+    - legend (dict or str): Legend of the different lines.
+                            Use the same argument as component_values in the 
+                            numerical_analog_filter_coefficients() method if 
+                            you want a fast legend creation!
     - title (str): title of the plot
     - semilogx (bool): If True, use a logarithmic scale for the x-axis
     - semilogy (bool): If True, use a logarithmic scale for the y-axis
@@ -335,33 +371,32 @@ def plotTransfertFunction(f, h, title=None, semilogx=True, dB=True, phase=True):
     - phase (bool): If True, plot the phase in radians
     '''
     
-
     if h.ndim > 3:
         raise ValueError("The input array h must have at most 3 dimensions.")
 
     #default colors and linestyles 
-    color = plt.cm.tab10(np.linspace(0, 1, 10)) #RdYlBu, plasma, viridis, inferno, magma, cividis
-    linestyle = ['-', '--', '-.', ':']
+    colors = plt.cm.tab10(np.linspace(0, 1, 10)) #RdYlBu, plasma, viridis, inferno, magma, cividis
+    linestyles = ['-', '--', '-.', ':', '-*', '-o', '-+', '-x', '-|']
+    colors_nbr = len(colors)
+    linestyles_nbr = len(linestyles)
 
-    h = np.atleast_3d(h)
+    h = np.atleast_2d(h)
 
     if dB: 
-        h_mag =  20 * np.log10(abs(h))
-        scale='dB'
+        h_mag =  20 * np.log10(np.abs(h))
+        scale = 'dB'
     else:
         h_mag = np.abs(h)
-        scale='lin.'
+        scale = 'lin.'
 
     fig, ax = plt.subplots(2 if phase else 1, 1, sharex=True, layout='tight')
     ax = np.atleast_1d(ax)
 
-    for i, h_slice in enumerate(h_mag):
-        for j, h_mag_array in enumerate(h_slice):
-            ax[0].plot(f, h_mag_array, color=color[j % 10], linestyle=linestyle[i % 4])
+    plot_curves(ax[0], f, h_mag, linestyles, colors)
 
-    if title is not None:
+    if isinstance(title, str):
         ax[0].set_title(title)
-
+    
     ax[0].set_ylabel(f'Magnitude [{scale}]')
     ax[0].grid(which='both')
     ax[-1].set_xticks([1, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000])
@@ -373,9 +408,8 @@ def plotTransfertFunction(f, h, title=None, semilogx=True, dB=True, phase=True):
         ax[0].set_xscale('log')
 
     if phase:
-        for i, h_slice in enumerate(h):
-            for j, h_array in enumerate(h_slice):
-                ax[1].plot(f, np.angle(h_array), color=color[j % 10], linestyle=linestyle[i % 4])
+        
+        plot_curves(ax[1], f, np.angle(h), linestyles, colors)
         
         ax[1].set_ylabel('Phase [radians]')
         ax[1].set_xlabel('Frequency [Hz]')
@@ -384,6 +418,41 @@ def plotTransfertFunction(f, h, title=None, semilogx=True, dB=True, phase=True):
         ax[1].set_xlim([f[0], f[-1]])
         ax[1].format_coord = lambda x, y: f'x={x:.3f}, y={y:.2f}'
         ax[1].grid(which='both')
+    
+    plot_legend(ax, h, legend, colors, linestyles)
 
     plt.show()
 
+
+def plot_curves(ax, x, y, linestyles, colors):
+    if y.ndim == 2:
+        for j, y_array in enumerate(y):
+            ax.plot(x, y_array, color=colors[j % len(colors)])
+    else:
+        for i, y_slice in enumerate(y):
+            for j, y_array in enumerate(y_slice):
+                ax.plot(x, y_array, linestyles[i % len(linestyles)], color=colors[j % len(colors)])
+    
+    
+
+def plot_legend(ax, h, legend, colors, linestyles):
+
+    colors_nbr, linestyles_nbr = len(colors), len(linestyles)
+
+    if legend is not None: 
+        if isinstance(legend, str):
+            ax[0].plot([], [], '-', label=legend)
+        else:
+            if h.ndim == 3:
+                first_key = list(legend.keys())[0]
+                first_key_values = legend[first_key]
+
+                for i in range(len(first_key_values)):
+                    ax[0].plot([], [], linestyles[i % linestyles_nbr], color='grey', label=f'{first_key}: {first_key_values[i]}')
+    
+            last_key = list(legend.keys())[-1]  #if h.ndim==2, last_key is obviously the only key in the legend dictionary
+            last_key_values = legend[last_key]
+
+            for i in range(len(last_key_values)):
+                ax[0].plot([], [], '-', color=colors[i % colors_nbr], label=f'{last_key}: {last_key_values[i]}')
+        ax[0].legend(loc='best')
