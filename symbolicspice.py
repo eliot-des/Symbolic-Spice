@@ -297,24 +297,47 @@ class CircuitSymbolicTransferFunction:
         return self
 
     def numerical_analog_filter_coefficients(self, component_values=None):
-        '''
-        Return the numerical coefficients of the analog filter transfer function.
+        """
+        Return the numerical coefficients `b_num` and `a_num` of the analog filter transfer function.
+        The coefficients are calculated by substituting the component values in the symbolic transfer function.
 
-        Parameters:
-        - component_values (dict):  A dictionary of component values. The keys are the component symbols, and the values are the component values.
-                        -If component_values is None, the default values of the components set in the Circuit object will be used.
-                        
-                        -If component_values is a dictionary with one key and a 1D array key values, 
-                        the function will return the a and b numerical coefficients for each value of the array, in a 2D array.
-                        
-                        -If component_values is a dictionary with multiple keys and with their associated 1D array key values,
-                        the function will return the a and b numerical coefficients for each combination of values in a (N+1)-D array,
-                        where N is the number of keys in the dictionary.
+        Notes
+        -----
+        THIS NEEDS TO BE IMPROVED, IT'S NOT VERY ELERGANT.
 
-        Returns:
-        - b_num (list): The numerator coefficients of the transfer function.
-        - a_num (list): The denominator coefficients of the transfer function.
-        '''
+        Parameters
+        ----------
+        component_values : {None, dict}, optional
+            A dictionary of component values. The keys are the component symbols, and the values are the component values.
+            * If component_values is None, the default values of the components set in the Circuit object will be used.
+            
+            * If component_values is a dictionary with one key and a 1D array key values, 
+            the function will return the a and b numerical coefficients for each value of the array, in a 2D array.
+            
+            * If component_values is a dictionary with multiple keys and with their associated 1D array key values,
+            the function will return the a and b numerical coefficients for each combination of values in a (N+1)-D array,
+            where N is the number of keys in the dictionary.
+
+        combinations : {'all', 'sequential'}, optional
+            * If the `component_values` dictionary has multiple keys, the 'combinations' argument specifies how to combine the values.
+            * If the `component_values` dictionary has only one key, the 'combinations' argument is ignored 
+            (for the moment not really, but it should works with 'all' or 'sequential' for one key too, even if it's not optimal)
+
+            * If `'all'`, return all the possible combinations of the component values. 
+            For example, if the dictionary is `{'R1': [1, 2], 'R2': [3, 4, 5]}`, 
+            the `'all'` option will return the combinations `[[(1, 3), (1, 4), (1, 5)], [(2, 3), (2, 4), (2,5)]]`.
+            * If 'sequential', return only the combinations of the component values in the order of the dictionary keys.
+            Therefore, the same number of values must be provided for each key in the dictionary.
+            For example, if the dictionary is `{'R1': [1, 2], 'R2': [3, 4]}`, 
+            the 'sequential' option will return the combinations `[(1, 3), (2, 4)]`.
+
+        Returns
+        -------
+        b_num : list
+            The numerator coefficients of the transfer function.
+        a_num : list
+            The denominator coefficients of the transfer function.
+        """
 
         if self.b is None or self.a is None:
             self.b, self.a = self.symbolic_analog_filter_coefficients()
