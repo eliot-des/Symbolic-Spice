@@ -16,11 +16,17 @@ class Circuit:
         Initializes a Circuit object.
 
         Parameters:
-        - inputList (list): A list of strings representing the components in the netlist.
+        - inputList (list or string): A list of strings representing the components 
+        in the netlist or a path to a LT Spice netlist file.
 
         Returns:
         - None
         """
+
+        # If input is netlist file, parse netlist
+        if isinstance(inputList, str):
+            inputList = loadnet(inputList)
+        
         self.components         = self.create_component_list(inputList)
         
         self.capacitors         = self.get_components_of_type(self.components, Capacitor)
@@ -289,7 +295,6 @@ class CircuitSymbolicTransferFunction:
         self.sympyExpr = sp.Poly(self.b, sp.symbols('s')) / sp.Poly(self.a, sp.symbols('s'))
         return self
 
-    
     def numerical_analog_filter_coefficients(self, component_values=None, combination='all'):
         """
         Return the numerical coefficients `b_num` and `a_num` of the analog filter transfer function.
@@ -312,7 +317,7 @@ class CircuitSymbolicTransferFunction:
             the function will return the a and b numerical coefficients for each combination of values in a (N+1)-D array,
             where N is the number of keys in the dictionary.
 
-        combinations : {'all', 'sequential'}, optional
+        combination : {'all', 'sequential'}, optional
             * If the `component_values` dictionary has multiple keys, the 'combinations' argument specifies how to combine the values.
             * If the `component_values` dictionary has only one key, the 'combinations' argument is ignored 
             (for the moment not really, but it should works with 'all' or 'sequential' for one key too, even if it's not optimal)
@@ -332,6 +337,7 @@ class CircuitSymbolicTransferFunction:
         a_num : list
             The denominator coefficients of the transfer function.
         """
+
         if self.b is None or self.a is None:
             self.b, self.a = self.symbolic_analog_filter_coefficients()
         
@@ -370,12 +376,12 @@ class CircuitSymbolicTransferFunction:
                 
                 # Reshape the results
                 shape = [len(values) for values in component_values.values()] + [len(self.b)]
-
+                
                 b_num = np.array(b_num).reshape(shape)
                 a_num = np.array(a_num).reshape(shape)
             
                 return b_num, a_num
-
+                
             elif combination == 'sequential':
                 keys, values = zip(*component_values.items())
 
@@ -528,3 +534,94 @@ def plot_legend(ax, h, legend, colors, linestyles):
             for i in range(len(last_key_values)):
                 ax[0].plot([], [], '-', color=colors[i % colors_nbr], label=f'{last_key}: {last_key_values[i]}')
         ax[0].legend(loc='best')
+
+
+
+def loadnet(fname):
+    """
+    Converts a LT Spice netlist into a list
+    that follows the input format of the Circuit class.
+
+    Parameters:
+    - fname (String): Path to circuit's netlist file.
+
+    Returns:
+    - outlist (list): list of formatted netlist components.
+    """ 
+    # Netlist import memory
+    temp = []
+    with open(fname) as text:
+        for line in text:
+            # purge lines after netlist
+            if line.startswith('.'):
+                break
+
+            # Modify node names to match parsing
+            line = line.replace('N00', 'N0')
+            line = line.replace('N0', '')
+
+            # Remove special/unnecesary characters
+            line = line.replace(' AC', '')
+            
+            # separate by lines
+            temp.append(line.strip('\n'))
+
+    # remove header
+    temp.pop(0)
+
+    # Create proper netlist matrix
+    netlist = np.zeros((len(temp), 4), dtype='<U22')
+    # set values to zero
+    netlist[:,3] = str(0)
+    # Separate name, start node, end node, value
+    for count, component in enumerate(temp):
+        # if value is declared
+        if np.shape(component.split(' '))[0] == 4:
+            netlist[count,:] = component.split(' ')
+        # else, value is set to 0
+        else:
+            netlist[count,:3] = component.split(' ')
+
+    # Replace SPICE units with Python units
+    netlist[:,3] = np.char.replace(netlist[:,3], 'p', 'e-12')
+    netlist[:,3] = np.char.replace(netlist[:,3], 'n', 'e-9')
+    netlist[:,3] = np.char.replace(netlist[:,3], 'u', 'e-6')
+    netlist[:,3] = np.char.replace(netlist[:,3], 'm', 'e-3')
+    netlist[:,3] = np.char.replace(netlist[:,3], 'k', 'e3')
+    netlist[:,3] = np.char.replace(netlist[:,3], 'MEG', 'e6')
+
+    # Remove unnecessary units
+    netlist[:,3] = np.char.replace(netlist[:,3], 'V', '')
+
+    # Find nodes with numbers
+    n1 = np.char.isdigit(netlist[:,1:3])
+    # Add 1 to max node (in case output is labeled)
+    maxNode = np.max(netlist[:,1:3][n1].astype(int) + 1)
+
+    # Make sure there is a voltage source from in to ground called Vin
+    if np.any(netlist[:, 0] == 'Vin'):
+        # Set input to the first node
+        netlist[:,1:3] = np.char.replace(netlist[:,1:3], '1', 'temp')
+        node = np.argwhere(netlist[:,0] == 'Vin')[0]
+        netlist[:,1:3] = np.char.replace(netlist[:,1:3], netlist[node,1], '1')
+        netlist[:,1:3] = np.char.replace(netlist[:,1:3], 'temp', netlist[node,1])
+        # Set Vin at the first row
+        temp = netlist[0,:].copy()
+        netlist[0,:] = netlist[node].flatten()
+        netlist[int(node), :] = temp
+        # Sort elements by node 1
+        netlist = netlist[netlist[:, 1].argsort()]
+    else:
+        raise Exception("Netlist is missing Vin, add a voltage source named Vin where the input is wanted")
+
+    # If there is a net label for the output set it as the last node
+    if np.any(netlist[:, 1:3] == 'out'):
+        # Replace out to max node
+        netlist[:,1:3] = np.char.replace(netlist[:,1:3], 'out', str(maxNode))
+
+    # return netlist as list of rows (each row is a component: [name, start node, end node, value])
+    outlist = []
+    for n in range(netlist.shape[0]):
+        outlist.append(' '.join(str(item) for item in netlist[n,:]))
+
+    return outlist
