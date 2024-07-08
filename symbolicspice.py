@@ -187,7 +187,7 @@ class Circuit:
             self.x_solution = sp.simplify(self.x_solution)
 
 
-    def get_symbolic_transfert_function(self, output_node, input_node):
+    def get_symbolic_transfert_function(self, output_node, input_node, normalize = True):
         """
         Returns a symbolic transfer function object of the netlist.
         The output_node and input_node are the nodes where the output and input are connected.
@@ -209,7 +209,19 @@ class Circuit:
         #if there is capacitors or inductors in the circuit, the symbolic transfer function can be factorized:
         if self.capacitors or self.inductors:
             #return the symbolic transfer function into the standard canonical form, where the laplace variable's' is the polynomial variable
-            H =  sp.cancel(sp.simplify(output_node_symbol / input_node_symbol), sp.symbols('s'))
+            H = sp.cancel(sp.simplify(output_node_symbol / input_node_symbol), sp.symbols('s'))
+            
+            if normalize:
+                # must normalize the transfer function to have a0 = 1
+                num, den = sp.fraction(H)
+
+                b = sp.Poly(num, sp.symbols('s')).all_coeffs()
+                a = sp.Poly(den, sp.symbols('s')).all_coeffs()
+
+                a0 = a[0]
+                a = [coeff/a0 for coeff in a]
+                b = [coeff/a0 for coeff in b]
+                H = sp.Poly(b, sp.symbols('s')) / sp.Poly(a, sp.symbols('s'))
         else :
             H = sp.simplify(output_node_symbol / input_node_symbol)
 
@@ -263,9 +275,10 @@ class CircuitSymbolicTransferFunction:
         self.b, self.a = None, None  #Symbolic analog filter coefficients
 
     def symbolic_analog_filter_coefficients(self):
-        num, denum = sp.fraction(self.sympyExpr)
-        self.b = sp.Poly(num, sp.symbols('s')).all_coeffs()
-        self.a = sp.Poly(denum, sp.symbols('s')).all_coeffs()
+        if self.b is None or self.a is None:
+            num, denum = sp.fraction(self.sympyExpr)
+            self.b = sp.Poly(num, sp.symbols('s')).all_coeffs()
+            self.a = sp.Poly(denum, sp.symbols('s')).all_coeffs()
         return self.b, self.a
 
     def numerical_analog_filter_coefficients(self, component_values=None, polynomial_variable=sp.symbols('s')):
@@ -392,20 +405,17 @@ def plotTransfertFunction(f, h, legend=None, title=None, semilogx=True, dB=True,
     fig, ax = plt.subplots(2 if phase else 1, 1, sharex=True, layout='tight')
     ax = np.atleast_1d(ax)
 
-    plot_curves(ax[0], f, h_mag, linestyles, colors)
-
     if isinstance(title, str):
         ax[0].set_title(title)
-    
-    ax[0].set_ylabel(f'Magnitude [{scale}]')
-    ax[0].grid(which='both')
-    ax[-1].set_xticks([1, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000])
-    ax[-1].set_xticklabels(['1', '20', '50', '100', '200', '500', '1k', '2k', '5k', '10k', '20k'])
-    ax[-1].set_xlim([f[0], f[-1]])
-    ax[0].format_coord = lambda x, y: f'x={x:.3f}, y={y:.3f}'
 
     if semilogx:
         ax[0].set_xscale('log')
+
+    plot_curves(ax[0], f, h_mag, linestyles, colors)
+
+    ax[0].set_ylabel(f'Magnitude [{scale}]')
+    ax[0].grid(which='both')
+    ax[0].format_coord = lambda x, y: f'x={x:.3f}, y={y:.3f}'
 
     if phase:
         
@@ -419,8 +429,11 @@ def plotTransfertFunction(f, h, legend=None, title=None, semilogx=True, dB=True,
         ax[1].format_coord = lambda x, y: f'x={x:.3f}, y={y:.2f}'
         ax[1].grid(which='both')
     
-    plot_legend(ax, h, legend, colors, linestyles)
+    ax[-1].set_xticks([1, 20, 50, 100, 200, 500, 1e3, 2e3, 5e3, 10e3, 20e3, 100e3, 1e6])
+    ax[-1].set_xticklabels(['1', '20', '50', '100', '200', '500', '1k', '2k', '5k', '10k', '20k', '100k', '1M'])
+    ax[-1].set_xlim([f[0], f[-1]])
 
+    plot_legend(ax, h, legend, colors, linestyles)
     plt.show()
 
 
@@ -440,8 +453,10 @@ def plot_legend(ax, h, legend, colors, linestyles):
     colors_nbr, linestyles_nbr = len(colors), len(linestyles)
 
     if legend is not None: 
+
         if isinstance(legend, str):
             ax[0].plot([], [], '-', label=legend)
+            
         else:
             if h.ndim == 3:
                 first_key = list(legend.keys())[0]
