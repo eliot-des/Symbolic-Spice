@@ -3,7 +3,7 @@ import numpy as np
 import itertools
 import matplotlib.pyplot as plt
 
-from components import AdmittanceComponent, Resistance, Capacitor, Inductance, VoltageSource, ExternalVoltageSource, CurrentSource, IdealOPA
+from components import AdmittanceComponent, Resistance, Capacitor, Inductance, VoltageSource, ExternalVoltageSource, CurrentSource, IdealOPA, Transformer, Gyrator
 import time 
     
 class Circuit:
@@ -75,33 +75,37 @@ class Circuit:
         - component (Component): A component object.
         """
 
-        symbol, start_node, end_node, value = netlist_line.split()
+        component_map = {
+            'R': Resistance,
+            'C': Capacitor,
+            'L': Inductance,
+            'V': VoltageSource,
+            'I': CurrentSource,
+            'O': IdealOPA,
+            'T': Transformer,
+            'G': Gyrator
+        }
 
-        if symbol.startswith('R'):
-            return Resistance(start_node, end_node, symbol, value)
-        
-        elif symbol.startswith('C'):
-            return Capacitor(start_node, end_node, symbol, value)
-        
-        elif symbol.startswith('L'):
-            return Inductance(start_node, end_node, symbol, value)
-    
-        elif symbol.startswith('V'):
-            if symbol.startswith('Vin'):
-                return ExternalVoltageSource(start_node, end_node, symbol, value, idx)
-            else:
-                return VoltageSource(start_node, end_node, symbol, value, idx)
-        elif symbol.startswith('I'):
-            return CurrentSource(start_node, end_node, symbol, value)
-        
-        elif symbol.startswith('O'):
-            #value is     : the output node of the OPA
-            #start node is: the + terminal of the OPA
-            #end node is  : the - terminal of the OPA
-            output_node = int(value)
-            return IdealOPA(start_node, end_node, output_node, value, idx) 
-        else:
-            raise ValueError(f"Unknown component symbol: {symbol}")
+        # Split the netlist line into its components
+        parts = netlist_line.split()
+        symbol = parts[0]
+        args = parts[1:]
+
+        # Determine the type of component and instantiate it. Not a big deel to do a for loop 
+        # and check if the symbol starts with the key of the component_map because the number 
+        # of components is very limited.
+        for key, component_class in component_map.items():
+            if symbol.startswith(key):
+                if key == 'V':
+                    if symbol.startswith('Vin'):
+                        return ExternalVoltageSource(*args[:-1], symbol, args[-1], idx)
+                    else:
+                        return component_class(*args[:-1], symbol, args[-1], idx) #normal voltage source
+                if key == 'O':
+                    return component_class(*args, symbol, idx)
+                return component_class(*args[:-1], symbol, args[-1])
+                
+        raise ValueError(f"Unknown component symbol: {symbol}")
 
 
 
@@ -387,9 +391,7 @@ class CircuitSymbolicTransferFunction:
 
                 if not all(len(value) == len(values[0]) for value in values):
                     raise ValueError("All values in the component_values dictionary must have the same length.")
-                
-                print('values:', values)
-                print('keys:', keys)
+
                 b_num = []
                 a_num = []
 
