@@ -295,7 +295,7 @@ class CircuitSymbolicTransferFunction:
         self.sympyExpr = sp.Poly(self.b, sp.symbols('s')) / sp.Poly(self.a, sp.symbols('s'))
         return self
 
-    def numerical_analog_filter_coefficients(self, component_values=None, combination='all'):
+    def numerical_analog_filter_coefficients(self, component_values=None, combination='nested'):
         """
         Return the numerical coefficients `b_num` and `a_num` of the analog filter transfer function.
         The coefficients are calculated by substituting the component values in the symbolic transfer function.
@@ -317,18 +317,18 @@ class CircuitSymbolicTransferFunction:
             the function will return the a and b numerical coefficients for each combination of values in a (N+1)-D array,
             where N is the number of keys in the dictionary.
 
-        combination : {'all', 'sequential'}, optional
+        combination : {'nested', 'parallel'}, optional
             * If the `component_values` dictionary has multiple keys, the 'combinations' argument specifies how to combine the values.
             * If the `component_values` dictionary has only one key, the 'combinations' argument is ignored 
-            (for the moment not really, but it should works with 'all' or 'sequential' for one key too, even if it's not optimal)
+            (for the moment not really, but it should works with 'nested' or 'parallel' for one key too, even if it's not optimal)
 
-            * If `'all'`, return all the possible combinations of the component values. 
+            * If `'nested'`, return all the possible combinations of the component values. 
             For example, if the dictionary is `{'R1': [1, 2], 'R2': [3, 4, 5]}`, 
-            the `'all'` option will return the combinations `[[(1, 3), (1, 4), (1, 5)], [(2, 3), (2, 4), (2,5)]]`.
-            * If 'sequential', return only the combinations of the component values in the order of the dictionary keys.
+            the `'nested'` option will return the combinations `[[(1, 3), (1, 4), (1, 5)], [(2, 3), (2, 4), (2,5)]]`.
+            * If 'parallel', return only the combinations of the component values in the order of the dictionary keys.
             Therefore, the same number of values must be provided for each key in the dictionary.
             For example, if the dictionary is `{'R1': [1, 2], 'R2': [3, 4]}`, 
-            the 'sequential' option will return the combinations `[(1, 3), (2, 4)]`.
+            the 'parallel' option will return the combinations `[(1, 3), (2, 4)]`.
 
         Returns
         -------
@@ -350,7 +350,7 @@ class CircuitSymbolicTransferFunction:
             return b_num, a_num
 
         else:
-            if combination == 'all':
+            if combination == 'nested':
                 # Generate all combinations of provided component values
                 #reorder the components values in an increasing order of the len of the values array ? Don't know... If so :
                 #component_values = {key: value for key, value in sorted(component_values.items(), key=lambda item: len(item[1]))}
@@ -382,7 +382,7 @@ class CircuitSymbolicTransferFunction:
             
                 return b_num, a_num
                 
-            elif combination == 'sequential':
+            elif combination == 'parallel':
                 keys, values = zip(*component_values.items())
 
                 if not all(len(value) == len(values[0]) for value in values):
@@ -408,7 +408,7 @@ class CircuitSymbolicTransferFunction:
                 
                 return np.array(b_num), np.array(a_num)
             else:
-                raise ValueError("The 'combinations' argument must be either 'all' or 'sequenced'.")
+                raise ValueError("The 'combinations' argument must be either 'nested' or 'parallel'.")
 
     def __str__(self):
         return str(self.sympyExpr)
