@@ -18,6 +18,8 @@ Symbolic-spice relies on the Modified Nodal Analysis, introduced by [Chen-When H
 - [x] Add parser for LT Spice .net files.
     - [ ] Add support for parameters.
     - [ ] Test parser with all the components.
+- [ ] Convert scripts into library.
+- [ ] Add Z-Transform for analog coefficients.
 - [ ] Add feature to get State-Space model from netlist.
 - [ ] Add optimizer to fine tune parameters based on a target measurement.
 - [ ] Use Pultec's EQP-1A as an example.
