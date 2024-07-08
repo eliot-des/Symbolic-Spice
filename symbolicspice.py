@@ -215,7 +215,6 @@ class Circuit:
             H = sp.cancel(sp.simplify(H), sp.symbols('s'))
         else:
             H = sp.simplify(H)
-        sp.pprint(H)
 
         transfer_function = CircuitSymbolicTransferFunction(H, self.components)
         return transfer_function.normalized() if normalize else transfer_function
@@ -290,26 +289,41 @@ class CircuitSymbolicTransferFunction:
         self.sympyExpr = sp.Poly(self.b, sp.symbols('s')) / sp.Poly(self.a, sp.symbols('s'))
         return self
 
-    def numerical_analog_filter_coefficients(self, component_values=None):
-        '''
-        Return the numerical coefficients of the analog filter transfer function.
+    
+    def numerical_analog_filter_coefficients(self, component_values=None, combination='all'):
+        """
+        Return the numerical coefficients `b_num` and `a_num` of the analog filter transfer function.
+        The coefficients are calculated by substituting the component values in the symbolic transfer function.
 
-        Parameters:
-        - component_values (dict):  A dictionary of component values. The keys are the component symbols, and the values are the component values.
-                        -If component_values is None, the default values of the components set in the Circuit object will be used.
-                        
-                        -If component_values is a dictionary with one key and a 1D array key values, 
-                        the function will return the a and b numerical coefficients for each value of the array, in a 2D array.
-                        
-                        -If component_values is a dictionary with multiple keys and with their associated 1D array key values,
-                        the function will return the a and b numerical coefficients for each combination of values in a (N+1)-D array,
-                        where N is the number of keys in the dictionary.
+        Parameters
+        ----------
+        component_values : {None, dict}, optional
+            A dictionary of component values. The keys are the component symbols, and the values are the component values.
+            -If component_values is None, the default values of the components set in the Circuit object will be used.
+            
+            -If component_values is a dictionary with one key and a 1D array key values, 
+            the function will return the a and b numerical coefficients for each value of the array, in a 2D array.
+            
+            -If component_values is a dictionary with multiple keys and with their associated 1D array key values,
+            the function will return the a and b numerical coefficients for each combination of values in a (N+1)-D array,
+            where N is the number of keys in the dictionary.
+        combinations : str 
+            If 'all', return all the possible combinations of the component values. 
+            For example, if the dictionary is {'R1': [1, 2], 'R2': [3, 4, 5]}, 
+            the 'all' option will return the combinations [[(1, 3), (1, 4), (1, 5)], [(2, 3), (2, 4), (2,5)]].
+            If 'sequential', return only the combinations of the component values in the order of the dictionary keys.
+            Therefore, the same number of values must be provided for each key in the dictionary.
+            For example, if the dictionary is {'R1': [1, 2], 'R2': [3, 4]}, 
+            the 'sequential' option will return the combinations [(1, 3), (2, 4)].
 
-        Returns:
-        - b_num (list): The numerator coefficients of the transfer function.
-        - a_num (list): The denominator coefficients of the transfer function.
-        '''
+        Returns
+        -------
+        b_num : list
+            The numerator coefficients of the transfer function.
+        a_num : list
+            The denominator coefficients of the transfer function.
 
+        """
         if self.b is None or self.a is None:
             self.b, self.a = self.symbolic_analog_filter_coefficients()
         
@@ -322,36 +336,72 @@ class CircuitSymbolicTransferFunction:
             return b_num, a_num
 
         else:
-            # Generate all combinations of provided component values
-            #reorder the components values in an increasing order of the len of the values array ? Don't know... If so :
-            #component_values = {key: value for key, value in sorted(component_values.items(), key=lambda item: len(item[1]))}
+            if combination == 'all':
+                # Generate all combinations of provided component values
+                #reorder the components values in an increasing order of the len of the values array ? Don't know... If so :
+                #component_values = {key: value for key, value in sorted(component_values.items(), key=lambda item: len(item[1]))}
 
-            keys, values = zip(*component_values.items())
-            combinations = list(itertools.product(*values))
+                keys, values = zip(*component_values.items())
+                combinations = list(itertools.product(*values))
 
-            b_num = []
-            a_num = []
+                b_num = []
+                a_num = []
+                
+                for combination in combinations:
+                    substitutions = {
+                        component.symbol: combination[keys.index(str(component.symbol))] 
+                        if str(component.symbol) in keys else component.value 
+                        for component in self.components
+                    }
+
+                    b_num_temp = [float(coeff.subs(substitutions)) for coeff in self.b]
+                    a_num_temp = [float(coeff.subs(substitutions)) for coeff in self.a]
+
+                    b_num.append(b_num_temp)
+                    a_num.append(a_num_temp)
+                
+                # Reshape the results
+                shape = [len(values) for values in component_values.values()] + [len(self.b)]
+
+                b_num = np.array(b_num).reshape(shape)
+                a_num = np.array(a_num).reshape(shape)
             
-            for combination in combinations:
-                substitutions = {
-                    component.symbol: combination[keys.index(str(component.symbol))] 
-                    if str(component.symbol) in keys else component.value 
-                    for component in self.components
-                }
+                return b_num, a_num
 
-                b_num_temp = [float(coeff.subs(substitutions)) for coeff in self.b]
-                a_num_temp = [float(coeff.subs(substitutions)) for coeff in self.a]
+            elif combination == 'sequential':
+                #DONT WORK FOR NOW
+                # Generate sequenced combinations of provided component values
+                keys, values = zip(*component_values.items())
+                if not all(len(value) == len(values[0]) for value in values):
+                    raise ValueError("All values in the component_values dictionary must have the same length.")
+                
+                print('values:', values)
+                print('keys:', keys)
+                b_num = []
+                a_num = []
 
-                b_num.append(b_num_temp)
-                a_num.append(a_num_temp)
-            
-            # Reshape the results
-            shape = [len(values) for values in component_values.values()] + [len(self.b)]
+                for i in range(len(values[0])):
+                    '''
+                    substitutions = {
+                        
+                        keys[j]: values[j][i] for j in range(len(keys))
+                        }
+                    '''
 
-            b_num = np.array(b_num).reshape(shape)
-            a_num = np.array(a_num).reshape(shape)
-        
-            return b_num, a_num
+                    substitutions = {
+                        component.symbol: values[j][i] if str(component.symbol) in keys else component.value
+                        for j, component in enumerate(self.components)
+                    }
+
+                    b_num_temp = [float(coeff.subs(substitutions)) for coeff in self.b]
+                    a_num_temp = [float(coeff.subs(substitutions)) for coeff in self.a]
+
+                    b_num.append(b_num_temp)
+                    a_num.append(a_num_temp)
+                
+                return np.array(b_num), np.array(a_num)
+            else:
+                raise ValueError("The 'combinations' argument must be either 'all' or 'sequenced'.")
 
     def __str__(self):
         return str(self.sympyExpr)
