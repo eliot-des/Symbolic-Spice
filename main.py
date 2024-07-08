@@ -9,7 +9,7 @@ Created on Thur Jul 04 17:27:53 2024
 from scipy.signal import freqs
 import numpy as np
 import sympy as sp
-from symbolicspice import Circuit, plotTransfertFunction
+from symbolicspice import Circuit, plotTransfertFunction, loadnet
 
 #declaration of the circuit
 '''
@@ -51,7 +51,7 @@ inputList   =  ['Vin 1 0 1',
 
 #declare a circuit object
 circuit = Circuit(inputList)
-
+circuit = Circuit(r'FMV Tone Stack.net')
 #circuit.display_components()
 circuit.stamp_system()
 circuit.print_system()
@@ -112,7 +112,3 @@ b_num, a_num =  H.numerical_analog_filter_coefficients()
 
 _, h = freqs(b_num, a_num, worN=w)
 plotTransfertFunction(f, h, legend='test', semilogx=True, dB=True, phase=True)
-
-
-
-
