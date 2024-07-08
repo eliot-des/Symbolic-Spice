@@ -316,18 +316,6 @@ class CircuitSymbolicTransferFunction:
             * If component_values is a dictionary with multiple keys and with their associated 1D array key values,
             the function will return the a and b numerical coefficients for each combination of values in a (N+1)-D array,
             where N is the number of keys in the dictionary.
-        Parameters
-        ----------
-        component_values : {None, dict}, optional
-            A dictionary of component values. The keys are the component symbols, and the values are the component values.
-            * If component_values is None, the default values of the components set in the Circuit object will be used.
-            
-            * If component_values is a dictionary with one key and a 1D array key values, 
-            the function will return the a and b numerical coefficients for each value of the array, in a 2D array.
-            
-            * If component_values is a dictionary with multiple keys and with their associated 1D array key values,
-            the function will return the a and b numerical coefficients for each combination of values in a (N+1)-D array,
-            where N is the number of keys in the dictionary.
 
         combination : {'all', 'sequential'}, optional
             * If the `component_values` dictionary has multiple keys, the 'combinations' argument specifies how to combine the values.
@@ -366,13 +354,7 @@ class CircuitSymbolicTransferFunction:
                 # Generate all combinations of provided component values
                 #reorder the components values in an increasing order of the len of the values array ? Don't know... If so :
                 #component_values = {key: value for key, value in sorted(component_values.items(), key=lambda item: len(item[1]))}
-            if combination == 'all':
-                # Generate all combinations of provided component values
-                #reorder the components values in an increasing order of the len of the values array ? Don't know... If so :
-                #component_values = {key: value for key, value in sorted(component_values.items(), key=lambda item: len(item[1]))}
 
-                keys, values = zip(*component_values.items())
-                combinations = list(itertools.product(*values))
                 keys, values = zip(*component_values.items())
                 combinations = list(itertools.product(*values))
 
@@ -385,18 +367,7 @@ class CircuitSymbolicTransferFunction:
                         if str(component.symbol) in keys else component.value 
                         for component in self.components
                     }
-                b_num = []
-                a_num = []
-                
-                for combination in combinations:
-                    substitutions = {
-                        component.symbol: combination[keys.index(str(component.symbol))] 
-                        if str(component.symbol) in keys else component.value 
-                        for component in self.components
-                    }
 
-                    b_num_temp = [float(coeff.subs(substitutions)) for coeff in self.b]
-                    a_num_temp = [float(coeff.subs(substitutions)) for coeff in self.a]
                     b_num_temp = [float(coeff.subs(substitutions)) for coeff in self.b]
                     a_num_temp = [float(coeff.subs(substitutions)) for coeff in self.a]
 
@@ -405,12 +376,7 @@ class CircuitSymbolicTransferFunction:
                 
                 # Reshape the results
                 shape = [len(values) for values in component_values.values()] + [len(self.b)]
-                    b_num.append(b_num_temp)
-                    a_num.append(a_num_temp)
                 
-                # Reshape the results
-                shape = [len(values) for values in component_values.values()] + [len(self.b)]
-
                 b_num = np.array(b_num).reshape(shape)
                 a_num = np.array(a_num).reshape(shape)
             
