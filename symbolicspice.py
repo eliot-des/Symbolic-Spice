@@ -215,10 +215,10 @@ class Circuit:
             H = sp.cancel(sp.simplify(H), sp.symbols('s'))
         else:
             H = sp.simplify(H)
+        sp.pprint(H)
 
-        # Normalize if required:
         transfer_function = CircuitSymbolicTransferFunction(H, self.components)
-        return transfer_function.normalize() if normalize else transfer_function
+        return transfer_function.normalized() if normalize else transfer_function
 
     def display_components(self, components_list = None):
         """
@@ -274,7 +274,7 @@ class CircuitSymbolicTransferFunction:
             self.a = sp.Poly(denum, sp.symbols('s')).all_coeffs()
         return self.b, self.a
 
-    def normalize(self):
+    def normalized(self):
         '''
         Normalize the transfer function to have self.a[0] = 1.
         '''
@@ -283,11 +283,12 @@ class CircuitSymbolicTransferFunction:
         if self.b is None or self.a is None:
             self.b, self.a = self.symbolic_analog_filter_coefficients()
 
-        a0 = a[0]
-        a = [coeff/a0 for coeff in a]
-        b = [coeff/a0 for coeff in b]
+        a0 = self.a[0]
+        self.a = [coeff/a0 for coeff in self.a]
+        self.b = [coeff/a0 for coeff in self.b]
 
-        self.sympyExpr = sp.Poly(b, sp.symbols('s')) / sp.Poly(a, sp.symbols('s'))
+        self.sympyExpr = sp.Poly(self.b, sp.symbols('s')) / sp.Poly(self.a, sp.symbols('s'))
+        return self
 
     def numerical_analog_filter_coefficients(self, component_values=None):
         '''
