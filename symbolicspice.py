@@ -192,40 +192,33 @@ class Circuit:
         Returns a symbolic transfer function object of the netlist.
         The output_node and input_node are the nodes where the output and input are connected.
         """
-        #if there is no x_solution attribute, we need to create one:
+        # Ensure the system is solved:
         if not hasattr(self, 'x_solution'):
             self.solve_system()
 
-        if output_node > 0:
-            output_node_symbol = self.x_solution[output_node - 1]
-        else:
-            output_node_symbol = 0
-        
-        if input_node > 0:
-            input_node_symbol = self.x_solution[input_node - 1]
-        else:
-            input_node_symbol = 0
-        
-        #if there is capacitors or inductors in the circuit, the symbolic transfer function can be factorized:
+        # Function to retrieve node symbol:
+        def get_Voltage_Expr(node):
+            if node == 0:
+                return 0
+            elif node <= self.n:
+                return self.x_solution[node - 1]
+            else:
+                raise ValueError(f"Node {node} is not in the circuit.")
+
+        # Retrieve symbols for output and input nodes:
+        output_Expr = get_Voltage_Expr(output_node)
+        input_Expr  = get_Voltage_Expr(input_node)
+
+        # Calculate the symbolic transfer function:
+        H = output_Expr / input_Expr
         if self.capacitors or self.inductors:
-            #return the symbolic transfer function into the standard canonical form, where the laplace variable's' is the polynomial variable
-            H = sp.cancel(sp.simplify(output_node_symbol / input_node_symbol), sp.symbols('s'))
-            
-            if normalize:
-                # must normalize the transfer function to have a0 = 1
-                num, den = sp.fraction(H)
+            H = sp.cancel(sp.simplify(H), sp.symbols('s'))
+        else:
+            H = sp.simplify(H)
 
-                b = sp.Poly(num, sp.symbols('s')).all_coeffs()
-                a = sp.Poly(den, sp.symbols('s')).all_coeffs()
-
-                a0 = a[0]
-                a = [coeff/a0 for coeff in a]
-                b = [coeff/a0 for coeff in b]
-                H = sp.Poly(b, sp.symbols('s')) / sp.Poly(a, sp.symbols('s'))
-        else :
-            H = sp.simplify(output_node_symbol / input_node_symbol)
-
-        return CircuitSymbolicTransferFunction(H, self.components)
+        # Normalize if required:
+        transfer_function = CircuitSymbolicTransferFunction(H, self.components)
+        return transfer_function.normalize() if normalize else transfer_function
 
     def display_components(self, components_list = None):
         """
@@ -281,7 +274,22 @@ class CircuitSymbolicTransferFunction:
             self.a = sp.Poly(denum, sp.symbols('s')).all_coeffs()
         return self.b, self.a
 
-    def numerical_analog_filter_coefficients(self, component_values=None, polynomial_variable=sp.symbols('s')):
+    def normalize(self):
+        '''
+        Normalize the transfer function to have self.a[0] = 1.
+        '''
+        num, den = sp.fraction(self.sympyExpr)
+
+        if self.b is None or self.a is None:
+            self.b, self.a = self.symbolic_analog_filter_coefficients()
+
+        a0 = a[0]
+        a = [coeff/a0 for coeff in a]
+        b = [coeff/a0 for coeff in b]
+
+        self.sympyExpr = sp.Poly(b, sp.symbols('s')) / sp.Poly(a, sp.symbols('s'))
+
+    def numerical_analog_filter_coefficients(self, component_values=None):
         '''
         Return the numerical coefficients of the analog filter transfer function.
 
@@ -295,9 +303,6 @@ class CircuitSymbolicTransferFunction:
                         -If component_values is a dictionary with multiple keys and with their associated 1D array key values,
                         the function will return the a and b numerical coefficients for each combination of values in a (N+1)-D array,
                         where N is the number of keys in the dictionary.
-                        
-        - polynomial_variable (symbol): The polynomial variable of the transfer function. Default is 's'. 
-                        Note that this variable must be the same as the one used in the symbolic transfer function.
 
         Returns:
         - b_num (list): The numerator coefficients of the transfer function.
