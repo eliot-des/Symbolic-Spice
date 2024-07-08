@@ -16,11 +16,17 @@ class Circuit:
         Initializes a Circuit object.
 
         Parameters:
-        - inputList (list): A list of strings representing the components in the netlist.
+        - inputList (list or string): A list of strings representing the components 
+        in the netlist or a path to a LT Spice netlist file.
 
         Returns:
         - None
         """
+
+        # If input is netlist file, parse netlist
+        if isinstance(inputList, str):
+            inputList = loadnet(inputList)
+        
         self.components         = self.create_component_list(inputList)
         
         self.capacitors         = self.get_components_of_type(self.components, Capacitor)
