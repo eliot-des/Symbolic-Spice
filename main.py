@@ -101,8 +101,8 @@ plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, p
 '''
 
 #2D Case
-component_values = {'R1': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3]), 'R2': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3])}
-b_num, a_num =  H.numerical_analog_filter_coefficients(component_values, combination='sequential')
+component_values = {'R1': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3])}
+b_num, a_num =  H.numerical_analog_filter_coefficients(component_values, combination='all')
 
 h = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(a_num))])
 plotTransfertFunction(f, h, semilogx=True, dB=True, phase=True)
