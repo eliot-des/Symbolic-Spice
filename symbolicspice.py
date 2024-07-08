@@ -296,7 +296,7 @@ class CircuitSymbolicTransferFunction:
         self.sympyExpr = sp.Poly(self.b, sp.symbols('s')) / sp.Poly(self.a, sp.symbols('s'))
         return self
 
-    def numerical_analog_filter_coefficients(self, component_values=None):
+    def numerical_analog_filter_coefficients(self, component_values=None, combinations='all'):
         """
         Return the numerical coefficients `b_num` and `a_num` of the analog filter transfer function.
         The coefficients are calculated by substituting the component values in the symbolic transfer function.
