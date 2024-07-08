@@ -51,7 +51,7 @@ inputList   =  ['Vin 1 0 1',
 
 #declare a circuit object
 circuit = Circuit(inputList)
-circuit = Circuit(r'FMV Tone Stack.net')
+#circuit = Circuit(r'FMV Tone Stack.net')
 #circuit.display_components()
 circuit.stamp_system()
 circuit.print_system()
@@ -97,18 +97,19 @@ b_num, a_num =  H.numerical_analog_filter_coefficients(component_values)
 
 h = np.array([[freqs(b_num[i][j], a_num[i][j], worN=w)[1] for j in range(len(a_num[i]))] for i in range(len(b_num))])
 plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, phase=True)
-
+'''
 
 #2D Case
-component_values = {'R4': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3])}
-b_num, a_num =  H.numerical_analog_filter_coefficients(component_values)
+component_values = {'R1': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3]), 'R2': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3])}
+b_num, a_num =  H.numerical_analog_filter_coefficients(component_values, combination='sequential')
 
 h = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(a_num))])
 plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, phase=True)
-'''
 
+'''
 #1D Case
 b_num, a_num =  H.numerical_analog_filter_coefficients()
 
 _, h = freqs(b_num, a_num, worN=w)
 plotTransfertFunction(f, h, legend='test', semilogx=True, dB=True, phase=True)
+'''

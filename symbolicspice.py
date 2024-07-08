@@ -296,7 +296,7 @@ class CircuitSymbolicTransferFunction:
         self.sympyExpr = sp.Poly(self.b, sp.symbols('s')) / sp.Poly(self.a, sp.symbols('s'))
         return self
 
-    def numerical_analog_filter_coefficients(self, component_values=None, combinations='all'):
+    def numerical_analog_filter_coefficients(self, component_values=None, combination='all'):
         """
         Return the numerical coefficients `b_num` and `a_num` of the analog filter transfer function.
         The coefficients are calculated by substituting the component values in the symbolic transfer function.
@@ -318,7 +318,7 @@ class CircuitSymbolicTransferFunction:
             the function will return the a and b numerical coefficients for each combination of values in a (N+1)-D array,
             where N is the number of keys in the dictionary.
 
-        combinations : {'all', 'sequential'}, optional
+        combination : {'all', 'sequential'}, optional
             * If the `component_values` dictionary has multiple keys, the 'combinations' argument specifies how to combine the values.
             * If the `component_values` dictionary has only one key, the 'combinations' argument is ignored 
             (for the moment not really, but it should works with 'all' or 'sequential' for one key too, even if it's not optimal)
@@ -351,7 +351,7 @@ class CircuitSymbolicTransferFunction:
             return b_num, a_num
 
         else:
-            if combinations == 'all':
+            if combination == 'all':
                 # Generate all combinations of provided component values
                 #reorder the components values in an increasing order of the len of the values array ? Don't know... If so :
                 #component_values = {key: value for key, value in sorted(component_values.items(), key=lambda item: len(item[1]))}
