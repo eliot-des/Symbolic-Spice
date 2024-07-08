@@ -29,6 +29,7 @@ inputList  =   ['Vin 1 0 1',
 
 # example with the "tone" stage architecture of the DOD 250 overdrive pedal
 # Values depends on the schematic found on the internet (but topology is correct)
+'''
 inputList  =   ['Vin 1 0 1',
                 'C1 1 0 0.01e-9',
                 'C2 1 2 10e-9',
@@ -40,6 +41,13 @@ inputList  =   ['Vin 1 0 1',
                 'C4 4 6 47e-9',
                 'R4 6 7 4.7e3',
                 'R5 7 0 1']
+'''
+inputList   =  ['Vin 1 0 1',
+                'C1 1 2 33e-9',
+                'C2 2 3 33e-9',
+                'R1 3 0 4824',
+                'OP1 3 4 4',
+                'R2 2 4 4824']       
 
 #declare a circuit object
 circuit = Circuit(inputList)
@@ -53,7 +61,7 @@ circuit.print_system()
 # The Code in this block can be useful if you want 
 # to see the symbolic solution of the x vector.
 
-circuit.solve_system(simplify=False, use_symengine=False)
+circuit.solve_system(simplify=True, use_symengine=False)
 
 print('\n\nx solution vector:\n')
 sp.pprint(sp.Eq(circuit.x, circuit.x_solution))
@@ -61,19 +69,20 @@ sp.pprint(sp.Eq(circuit.x, circuit.x_solution))
 
 # Get the symbolic transfer function between the output node and the input node
 # DONT FORGET TO CHANGE THE OUTPUT AND INPUT NODES ACCORDING TO YOUR NETLIST !
-H = circuit.get_symbolic_transfert_function(output_node = 5, input_node = 1)
+H = circuit.get_symbolic_transfert_function(output_node = 4, input_node = 1)
 
-'''
+
 print('\n\nSymbolic transfer function:\n')
 sp.pprint(H.sympyExpr)
-'''
+
 
 b, a = H.symbolic_analog_filter_coefficients()
 
 print(f'\nb coefficients :{b}')
 print(f'a coefficients :{a}')
 
-f = np.arange(1, 20e3)
+
+f = np.geomspace(1,20000, num=1000)
 w = 2*np.pi*f
 
 
@@ -81,29 +90,29 @@ w = 2*np.pi*f
 # You can also not given a component_values argument to the function.
 # In this case, the function will take the default values of the components set in the circuit object.
 #3D Case :
+'''
 component_values = {'C3': np.array([10e-12, 22e-12, 50e-12]),
                     'R4': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3])}
 b_num, a_num =  H.numerical_analog_filter_coefficients(component_values)
-print(b_num.shape)
 
 h = np.array([[freqs(b_num[i][j], a_num[i][j], worN=w)[1] for j in range(len(a_num[i]))] for i in range(len(b_num))])
 plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, phase=True)
 
-'''
+
 #2D Case
 component_values = {'R4': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3])}
 b_num, a_num =  H.numerical_analog_filter_coefficients(component_values)
 
 h = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(a_num))])
 plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, phase=True)
-
+'''
 
 #1D Case
 b_num, a_num =  H.numerical_analog_filter_coefficients()
 
 _, h = freqs(b_num, a_num, worN=w)
 plotTransfertFunction(f, h, legend='test', semilogx=True, dB=True, phase=True)
-'''
+
 
 
 
