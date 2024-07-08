@@ -1,0 +1,13 @@
+* C:\Users\garam\OneDrive\Documentos\Github Repo\symbspice\Symbolic-Spice\FMV Tone Stack.asc
+R1 N001 N003 100k
+C1 N002 N001 470p
+Rt1 N002 out 125k
+Rt2 out N004 125k
+C2 N004 N003 22n
+Rb N004 N005 500k
+Rm N005 0 12.5k
+C3 N005 N003 22n
+Vin N001 0 AC 1
+.ac dec 100 1 20k
+.backanno
+.end
