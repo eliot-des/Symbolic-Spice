@@ -351,36 +351,65 @@ class CircuitSymbolicTransferFunction:
             return b_num, a_num
 
         else:
-            # Generate all combinations of provided component values
-            #reorder the components values in an increasing order of the len of the values array ? Don't know... If so :
-            #component_values = {key: value for key, value in sorted(component_values.items(), key=lambda item: len(item[1]))}
+            if combinations == 'all':
+                # Generate all combinations of provided component values
+                #reorder the components values in an increasing order of the len of the values array ? Don't know... If so :
+                #component_values = {key: value for key, value in sorted(component_values.items(), key=lambda item: len(item[1]))}
 
-            keys, values = zip(*component_values.items())
-            combinations = list(itertools.product(*values))
+                keys, values = zip(*component_values.items())
+                combinations = list(itertools.product(*values))
 
-            b_num = []
-            a_num = []
+                b_num = []
+                a_num = []
+                
+                for combination in combinations:
+                    substitutions = {
+                        component.symbol: combination[keys.index(str(component.symbol))] 
+                        if str(component.symbol) in keys else component.value 
+                        for component in self.components
+                    }
+
+                    b_num_temp = [float(coeff.subs(substitutions)) for coeff in self.b]
+                    a_num_temp = [float(coeff.subs(substitutions)) for coeff in self.a]
+
+                    b_num.append(b_num_temp)
+                    a_num.append(a_num_temp)
+                
+                # Reshape the results
+                shape = [len(values) for values in component_values.values()] + [len(self.b)]
+
+                b_num = np.array(b_num).reshape(shape)
+                a_num = np.array(a_num).reshape(shape)
             
-            for combination in combinations:
-                substitutions = {
-                    component.symbol: combination[keys.index(str(component.symbol))] 
-                    if str(component.symbol) in keys else component.value 
-                    for component in self.components
-                }
+                return b_num, a_num
+                
+            elif combination == 'sequential':
+                keys, values = zip(*component_values.items())
 
-                b_num_temp = [float(coeff.subs(substitutions)) for coeff in self.b]
-                a_num_temp = [float(coeff.subs(substitutions)) for coeff in self.a]
+                if not all(len(value) == len(values[0]) for value in values):
+                    raise ValueError("All values in the component_values dictionary must have the same length.")
+                
+                print('values:', values)
+                print('keys:', keys)
+                b_num = []
+                a_num = []
 
-                b_num.append(b_num_temp)
-                a_num.append(a_num_temp)
-            
-            # Reshape the results
-            shape = [len(values) for values in component_values.values()] + [len(self.b)]
+                for i in range(len(values[0])):
+                    substitutions = {
+                        component.symbol: values[keys.index(str(component.symbol))][i] 
+                        if str(component.symbol) in keys else component.value 
+                        for component in self.components
+                    }
 
-            b_num = np.array(b_num).reshape(shape)
-            a_num = np.array(a_num).reshape(shape)
-        
-            return b_num, a_num
+                    b_num_temp = [float(coeff.subs(substitutions)) for coeff in self.b]
+                    a_num_temp = [float(coeff.subs(substitutions)) for coeff in self.a]
+
+                    b_num.append(b_num_temp)
+                    a_num.append(a_num_temp)
+                
+                return np.array(b_num), np.array(a_num)
+            else:
+                raise ValueError("The 'combinations' argument must be either 'all' or 'sequenced'.")
 
     def __str__(self):
         return str(self.sympyExpr)
