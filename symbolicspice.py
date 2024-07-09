@@ -535,6 +535,7 @@ def loadnet(fname):
     netlist[:,3] = np.char.replace(netlist[:,3], 'p', 'e-12')
     netlist[:,3] = np.char.replace(netlist[:,3], 'n', 'e-9')
     netlist[:,3] = np.char.replace(netlist[:,3], 'u', 'e-6')
+    netlist[:,3] = np.char.replace(netlist[:,3], 'μ', 'e-6')
     netlist[:,3] = np.char.replace(netlist[:,3], 'm', 'e-3')
     netlist[:,3] = np.char.replace(netlist[:,3], 'k', 'e3')
     netlist[:,3] = np.char.replace(netlist[:,3], 'MEG', 'e6')
