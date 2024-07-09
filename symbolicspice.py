@@ -27,7 +27,7 @@ class Circuit:
         if isinstance(inputList, str):
             inputList = self.__loadnet(inputList)
         
-        self.components         = self.create_component_list(inputList)
+        self.components         = self.__create_component_list(inputList)
         
         self.capacitors         = self.get_components_of_type(self.components, Capacitor)
         self.inductors          = self.get_components_of_type(self.components, Inductance)
@@ -41,7 +41,7 @@ class Circuit:
             component.circuit = self
 
 
-    def create_component_list(self, inputList):
+    def __create_component_list(self, inputList):
         """
         Creates a list of component objects based on the input list.
 
@@ -55,7 +55,7 @@ class Circuit:
         idx = 0
         components = []
         for element in inputList:
-            component = self.create_component(element, idx)
+            component = self.__create_component(element, idx)
             if isinstance(component, VoltageSource) or isinstance(component, IdealOPA):
                 idx += 1    
             components.append(component)
@@ -63,7 +63,7 @@ class Circuit:
 
 
     
-    def create_component(self, netlist_line, idx):
+    def __create_component(self, netlist_line, idx):
         """
         Creates a component object based on the input string. Very simple parser.
 
@@ -244,7 +244,7 @@ class Circuit:
         for component in components_list:
             print(f" {str(component):<22} | {str(component.symbol):^6} | {component.start_node:^5} | {component.end_node:^5} | {str(component.admittance):^15} | {component.value:^11} ")
         print(strLine)
-        
+
     def __loadnet(self, fname):
         """
         Converts a LT Spice netlist into a list
