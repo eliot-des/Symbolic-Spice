@@ -19,7 +19,11 @@ Symbolic-spice relies on the Modified Nodal Analysis, introduced by [Chen-When H
     - [ ] Add support for parameters.
     - [ ] Test parser with all the components.
 - [ ] Convert scripts into library.
-- [ ] Add Z-Transform for analog coefficients.
+- [x] Add Z-Transform for analog coefficients.
+    - [ ] Merge into transfer function class
+    - [ ] Clean-up implementation
+    - [ ] Add normalizing.
+    - [ ] Solve numpy object/float situation.
 - [ ] Add feature to get State-Space model from netlist.
 - [ ] Add optimizer to fine tune parameters based on a target measurement.
 - [ ] Use Pultec's EQP-1A as an example.
