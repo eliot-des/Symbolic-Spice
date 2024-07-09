@@ -42,6 +42,7 @@ inputList  =   ['Vin 1 0 1',
                 'R4 6 7 4.7e3',
                 'R5 7 0 1']
 '''
+# example with a salen-key high-pass filter
 inputList   =  ['Vin 1 0 1',
                 'C1 1 2 33e-9',
                 'C2 2 3 33e-9',
@@ -83,7 +84,7 @@ print(f'\nb coefficients :{b}')
 print(f'a coefficients :{a}')
 
 
-f = np.geomspace(20,20000, num=1000)
+f = np.geomspace(1,20000, num=1000)
 w = 2*np.pi*f
 
 
@@ -102,7 +103,7 @@ plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, p
 
 
 #2D Case
-component_values = {'R1': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3]), 'R2': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3])}
+component_values = {'R1': np.array([1e3, 2.2e3, 4.7e3, 10e3, 22e3, 47e3]), 'R2': np.array([1e3,2.2e3, 4.7e3, 10e3, 22e3, 47e3])}
 b_num, a_num =  H.numerical_analog_filter_coefficients(component_values, combination='parallel')
 
 h = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(a_num))])
