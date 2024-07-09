@@ -70,14 +70,7 @@ sp.pprint(sp.Eq(circuit.x, circuit.x_solution))
 
 # Get the symbolic transfer function between the output node and the input node
 # DONT FORGET TO CHANGE THE OUTPUT AND INPUT NODES ACCORDING TO YOUR NETLIST !
-H = circuit.get_symbolic_transfert_function(output_node = 4, input_node = 1, normalize=True)
-
-'''
-print('\n\nSymbolic transfer function:\n')
-sp.pprint(H.sympyExpr)
-'''
-
-b, a = H.symbolic_analog_filter_coefficients()
+b, a = circuit.tf(output_node = 4, norm=True)
 
 print(f'\nb coefficients :{b}')
 print(f'a coefficients :{a}')
@@ -103,7 +96,7 @@ plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, p
 
 #2D Case
 component_values = {'R1': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3]), 'R2': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3])}
-b_num, a_num =  H.numerical_analog_filter_coefficients(component_values, combination='parallel')
+# b_num, a_num =  H.numerical_analog_filter_coefficients(component_values, combination='parallel')
 
 h = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(a_num))])
 plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, phase=True)
