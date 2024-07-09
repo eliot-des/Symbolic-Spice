@@ -3,7 +3,7 @@ import numpy as np
 import itertools
 import matplotlib.pyplot as plt
 
-from components import AdmittanceComponent, Resistance, Capacitor, Inductance, VoltageSource, ExternalVoltageSource, CurrentSource, IdealOPA
+from components import AdmittanceComponent, Resistance, Capacitor, Inductance, VoltageSource, ExternalVoltageSource, CurrentSource, IdealOPA, Transformer, Gyrator
 import time 
     
 class Circuit:
@@ -75,33 +75,37 @@ class Circuit:
         - component (Component): A component object.
         """
 
-        symbol, start_node, end_node, value = netlist_line.split()
+        component_map = {
+            'R': Resistance,
+            'C': Capacitor,
+            'L': Inductance,
+            'V': VoltageSource,
+            'I': CurrentSource,
+            'O': IdealOPA,
+            'T': Transformer,
+            'G': Gyrator
+        }
 
-        if symbol.startswith('R'):
-            return Resistance(start_node, end_node, symbol, value)
-        
-        elif symbol.startswith('C'):
-            return Capacitor(start_node, end_node, symbol, value)
-        
-        elif symbol.startswith('L'):
-            return Inductance(start_node, end_node, symbol, value)
-    
-        elif symbol.startswith('V'):
-            if symbol.startswith('Vin'):
-                return ExternalVoltageSource(start_node, end_node, symbol, value, idx)
-            else:
-                return VoltageSource(start_node, end_node, symbol, value, idx)
-        elif symbol.startswith('I'):
-            return CurrentSource(start_node, end_node, symbol, value)
-        
-        elif symbol.startswith('O'):
-            #value is     : the output node of the OPA
-            #start node is: the + terminal of the OPA
-            #end node is  : the - terminal of the OPA
-            output_node = int(value)
-            return IdealOPA(start_node, end_node, output_node, value, idx) 
-        else:
-            raise ValueError(f"Unknown component symbol: {symbol}")
+        # Split the netlist line into its components
+        parts = netlist_line.split()
+        symbol = parts[0]
+        args = parts[1:]
+
+        # Determine the type of component and instantiate it. Not a big deel to do a for loop 
+        # and check if the symbol starts with the key of the component_map because the number 
+        # of components is very limited.
+        for key, component_class in component_map.items():
+            if symbol.startswith(key):
+                if key == 'V':
+                    if symbol.startswith('Vin'):
+                        return ExternalVoltageSource(*args[:-1], symbol, args[-1], idx)
+                    else:
+                        return component_class(*args[:-1], symbol, args[-1], idx) #normal voltage source
+                if key == 'O':
+                    return component_class(*args, symbol, idx)
+                return component_class(*args[:-1], symbol, args[-1])
+                
+        raise ValueError(f"Unknown component symbol: {symbol}")
 
 
 
@@ -221,7 +225,6 @@ class Circuit:
             H = sp.cancel(sp.simplify(H), sp.symbols('s'))
         else:
             H = sp.simplify(H)
-        sp.pprint(H)
 
         transfer_function = CircuitSymbolicTransferFunction(H, self.components)
         return transfer_function.normalized() if normalize else transfer_function
@@ -296,25 +299,48 @@ class CircuitSymbolicTransferFunction:
         self.sympyExpr = sp.Poly(self.b, sp.symbols('s')) / sp.Poly(self.a, sp.symbols('s'))
         return self
 
-    def numerical_analog_filter_coefficients(self, component_values=None):
-        '''
-        Return the numerical coefficients of the analog filter transfer function.
+    def numerical_analog_filter_coefficients(self, component_values=None, combination='nested'):
+        """
+        Return the numerical coefficients `b_num` and `a_num` of the analog filter transfer function.
+        The coefficients are calculated by substituting the component values in the symbolic transfer function.
 
-        Parameters:
-        - component_values (dict):  A dictionary of component values. The keys are the component symbols, and the values are the component values.
-                        -If component_values is None, the default values of the components set in the Circuit object will be used.
-                        
-                        -If component_values is a dictionary with one key and a 1D array key values, 
-                        the function will return the a and b numerical coefficients for each value of the array, in a 2D array.
-                        
-                        -If component_values is a dictionary with multiple keys and with their associated 1D array key values,
-                        the function will return the a and b numerical coefficients for each combination of values in a (N+1)-D array,
-                        where N is the number of keys in the dictionary.
+        Notes
+        -----
+        THIS NEEDS TO BE IMPROVED, IT'S NOT VERY ELERGANT.
 
-        Returns:
-        - b_num (list): The numerator coefficients of the transfer function.
-        - a_num (list): The denominator coefficients of the transfer function.
-        '''
+        Parameters
+        ----------
+        component_values : {None, dict}, optional
+            A dictionary of component values. The keys are the component symbols, and the values are the component values.
+            * If component_values is None, the default values of the components set in the Circuit object will be used.
+            
+            * If component_values is a dictionary with one key and a 1D array key values, 
+            the function will return the a and b numerical coefficients for each value of the array, in a 2D array.
+            
+            * If component_values is a dictionary with multiple keys and with their associated 1D array key values,
+            the function will return the a and b numerical coefficients for each combination of values in a (N+1)-D array,
+            where N is the number of keys in the dictionary.
+
+        combination : {'nested', 'parallel'}, optional
+            * If the `component_values` dictionary has multiple keys, the 'combinations' argument specifies how to combine the values.
+            * If the `component_values` dictionary has only one key, the 'combinations' argument is ignored 
+            (for the moment not really, but it should works with 'nested' or 'parallel' for one key too, even if it's not optimal)
+
+            * If `'nested'`, return all the possible combinations of the component values. 
+            For example, if the dictionary is `{'R1': [1, 2], 'R2': [3, 4, 5]}`, 
+            the `'nested'` option will return the combinations `[[(1, 3), (1, 4), (1, 5)], [(2, 3), (2, 4), (2,5)]]`.
+            * If 'parallel', return only the combinations of the component values in the order of the dictionary keys.
+            Therefore, the same number of values must be provided for each key in the dictionary.
+            For example, if the dictionary is `{'R1': [1, 2], 'R2': [3, 4]}`, 
+            the 'parallel' option will return the combinations `[(1, 3), (2, 4)]`.
+
+        Returns
+        -------
+        b_num : list
+            The numerator coefficients of the transfer function.
+        a_num : list
+            The denominator coefficients of the transfer function.
+        """
 
         if self.b is None or self.a is None:
             self.b, self.a = self.symbolic_analog_filter_coefficients()
@@ -328,36 +354,63 @@ class CircuitSymbolicTransferFunction:
             return b_num, a_num
 
         else:
-            # Generate all combinations of provided component values
-            #reorder the components values in an increasing order of the len of the values array ? Don't know... If so :
-            #component_values = {key: value for key, value in sorted(component_values.items(), key=lambda item: len(item[1]))}
+            if combination == 'nested':
+                # Generate all combinations of provided component values
+                #reorder the components values in an increasing order of the len of the values array ? Don't know... If so :
+                #component_values = {key: value for key, value in sorted(component_values.items(), key=lambda item: len(item[1]))}
 
-            keys, values = zip(*component_values.items())
-            combinations = list(itertools.product(*values))
+                keys, values = zip(*component_values.items())
+                combinations = list(itertools.product(*values))
 
-            b_num = []
-            a_num = []
+                b_num = []
+                a_num = []
+                
+                for combination in combinations:
+                    substitutions = {
+                        component.symbol: combination[keys.index(str(component.symbol))] 
+                        if str(component.symbol) in keys else component.value 
+                        for component in self.components
+                    }
+
+                    b_num_temp = [float(coeff.subs(substitutions)) for coeff in self.b]
+                    a_num_temp = [float(coeff.subs(substitutions)) for coeff in self.a]
+
+                    b_num.append(b_num_temp)
+                    a_num.append(a_num_temp)
+                
+                # Reshape the results
+                shape = [len(values) for values in component_values.values()] + [len(self.b)]
+                
+                b_num = np.array(b_num).reshape(shape)
+                a_num = np.array(a_num).reshape(shape)
             
-            for combination in combinations:
-                substitutions = {
-                    component.symbol: combination[keys.index(str(component.symbol))] 
-                    if str(component.symbol) in keys else component.value 
-                    for component in self.components
-                }
+                return b_num, a_num
+                
+            elif combination == 'parallel':
+                keys, values = zip(*component_values.items())
 
-                b_num_temp = [float(coeff.subs(substitutions)) for coeff in self.b]
-                a_num_temp = [float(coeff.subs(substitutions)) for coeff in self.a]
+                if not all(len(value) == len(values[0]) for value in values):
+                    raise ValueError("All values in the component_values dictionary must have the same length.")
 
-                b_num.append(b_num_temp)
-                a_num.append(a_num_temp)
-            
-            # Reshape the results
-            shape = [len(values) for values in component_values.values()] + [len(self.b)]
+                b_num = []
+                a_num = []
 
-            b_num = np.array(b_num).reshape(shape)
-            a_num = np.array(a_num).reshape(shape)
-        
-            return b_num, a_num
+                for i in range(len(values[0])):
+                    substitutions = {
+                        component.symbol: values[keys.index(str(component.symbol))][i] 
+                        if str(component.symbol) in keys else component.value 
+                        for component in self.components
+                    }
+
+                    b_num_temp = [float(coeff.subs(substitutions)) for coeff in self.b]
+                    a_num_temp = [float(coeff.subs(substitutions)) for coeff in self.a]
+
+                    b_num.append(b_num_temp)
+                    a_num.append(a_num_temp)
+                
+                return np.array(b_num), np.array(a_num)
+            else:
+                raise ValueError("The 'combinations' argument must be either 'nested' or 'parallel'.")
 
     def __str__(self):
         return str(self.sympyExpr)
