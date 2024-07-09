@@ -29,10 +29,10 @@ class Circuit:
         
         self.components         = self.__create_component_list(inputList)
         
-        self.capacitors         = self.get_components_of_type(self.components, Capacitor)
-        self.inductors          = self.get_components_of_type(self.components, Inductance)
-        self.voltageSources     = self.get_components_of_type(self.components, VoltageSource)
-        self.idealOPAs          = self.get_components_of_type(self.components, IdealOPA)
+        self.capacitors         = self.__get_components_of_type(self.components, Capacitor)
+        self.inductors          = self.__get_components_of_type(self.components, Inductance)
+        self.voltageSources     = self.__get_components_of_type(self.components, VoltageSource)
+        self.idealOPAs          = self.__get_components_of_type(self.components, IdealOPA)
 
         self.m = len(self.voltageSources) + len(self.idealOPAs)
         self.n = self.get_nodes_nbr()   # Number of nodes including the ground node
@@ -109,7 +109,7 @@ class Circuit:
 
 
 
-    def get_components_of_type(self, components, component_type):
+    def __get_components_of_type(self, components, component_type):
         """
         Returns the total number of one type of component from the list of components. 
         The arg component_type must be a subclass of the Component Class
