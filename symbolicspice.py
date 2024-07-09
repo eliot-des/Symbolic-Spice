@@ -2,6 +2,7 @@ import sympy as sp
 import numpy as np
 import itertools
 import matplotlib.pyplot as plt
+from numbers import Number
 
 from components import AdmittanceComponent, Resistance, Capacitor, Inductance, VoltageSource, ExternalVoltageSource, CurrentSource, IdealOPA, Transformer, Gyrator
 import time 
@@ -197,10 +198,21 @@ class Circuit:
             self.x_solution = sp.simplify(self.x_solution)
 
 
-    def get_symbolic_transfert_function(self, output_node, input_node, normalize = True):
+    def tf(self, output_node, input_node=1, norm = True, symb=True, z=False, fs=None):
         """
-        Returns a symbolic transfer function object of the netlist.
-        The output_node and input_node are the nodes where the output and input are connected.
+        Returns the b & a coefficients of the symbolic transfer function object of the netlist.
+
+        Parameters:
+        output_node (int): Node where the output is set.
+        input_node (int): Node where Vin is set.
+        norm (bool): Normalize coefficients (b/a0 & a/a0 if True).
+        symb (bool): Return symbolic (if True) or numeric coefficients.
+        z (int): Return analog (if 0) or digital coefficients.
+            - Possible schemes:
+                * Bilinear: 'blnr'
+                * Euler Forward: 'frwrd'
+                * Euler Backward: 'bckwrd'
+        fs (int): Sample rate for discrete transform if numeric.
         """
         # Ensure the system is solved:
         if not hasattr(self, 'x_solution'):
@@ -226,8 +238,26 @@ class Circuit:
         else:
             H = sp.simplify(H)
 
+        # Create tf object
         transfer_function = CircuitSymbolicTransferFunction(H, self.components)
-        return transfer_function.normalized() if normalize else transfer_function
+        # Normalize b a coefficients if norm set True
+        if norm: transfer_function.normalized()
+
+        if symb == True:
+            b, a = transfer_function.symbolic_analog_filter_coefficients()
+        else:
+            b, a = transfer_function.numerical_analog_filter_coefficients()
+
+        if z != 0:
+            if symb == True:
+                b, a = eval(b, a, z)
+            else:
+                if fs == None:
+                    raise Exception("Samplerate was not given.")
+                
+                b, a = eval(b, a, z, fs)
+
+        return b, a
 
     def display_components(self, components_list = None):
         """
@@ -305,7 +335,10 @@ class Circuit:
         # Find nodes with numbers
         n1 = np.char.isdigit(netlist[:,1:3])
         # Add 1 to max node (in case output is labeled)
-        maxNode = np.max(netlist[:,1:3][n1].astype(int) + 1)
+        if np.any(netlist[:, 1:3] == 'out'):
+            self.outNode = np.max(netlist[:,1:3][n1].astype(int) + 1)
+        else: # if not choose last node as output
+            self.outNode = np.max(netlist[:,1:3][n1].astype(int))
 
         # Make sure there is a voltage source from in to ground called Vin
         if np.any(netlist[:, 0] == 'Vin'):
@@ -326,7 +359,7 @@ class Circuit:
         # If there is a net label for the output set it as the last node
         if np.any(netlist[:, 1:3] == 'out'):
             # Replace out to max node
-            netlist[:,1:3] = np.char.replace(netlist[:,1:3], 'out', str(maxNode))
+            netlist[:,1:3] = np.char.replace(netlist[:,1:3], 'out', str(self.outNode))
 
         # return netlist as list of rows (each row is a component: [name, start node, end node, value])
         outlist = []
@@ -386,7 +419,6 @@ class CircuitSymbolicTransferFunction:
         self.b = [coeff/a0 for coeff in self.b]
 
         self.sympyExpr = sp.Poly(self.b, sp.symbols('s')) / sp.Poly(self.a, sp.symbols('s'))
-        return self
 
     def numerical_analog_filter_coefficients(self, component_values=None, combination='nested'):
         """
@@ -624,3 +656,115 @@ def plot_legend(ax, h, legend, colors, linestyles):
             for i in range(len(last_key_values)):
                 ax[0].plot([], [], '-', color=colors[i % colors_nbr], label=f'{last_key}: {last_key_values[i]}')
         ax[0].legend(loc='best')
+
+def coeffs(N, scheme='blnr'):
+    """
+    coeffs returns the symbolic discretized 
+    coefficients for a given order N & 
+    discretization scheme. (frwrd, bckwrd, blnr)
+
+    Parameters:
+    - N (int): Order of transfer function
+    scheme: Desired discretization scheme.
+
+    Returns
+    Bd (np array), Ad (np array): B, A discretized
+    coefficients array, object type.
+    """
+    # Necessary symbols
+    s = sp.Symbol('s') # Laplace domain
+    z = sp.Symbol('z') # Z domain
+    Ts = sp.Symbol('T_s') # Sample period
+
+    # Create symbolic coeffs using
+    # poly order # a_n + a_{n-1} * s + a_{n-2} * s^2 + ... a_0 * s^N
+    b = sp.symbols('a_0:' + str(N + 1))
+    b = b[::-1]
+    a = sp.symbols('b_0:' + str(N + 1))
+    a = a[::-1]
+    
+    # Set scheme
+    if scheme == 'frwrd': # Forward Euler
+        ds = (z - 1) / Ts
+    elif scheme == 'bckwrd': # Backward Euler
+        ds = (z - 1) / Ts / z 
+    elif scheme == 'blnr': # Bilinear
+        ds = 2 / Ts * (z - 1) / (z + 1) 
+    else:
+        raise Exception("Invalid scheme given")
+
+    # Create variables
+    B = sp.Poly(a, s)
+    A = sp.Poly(b, s)
+
+    # Replace s for chosen method
+    B = B.as_expr().subs(s, ds) * (z + 1)**N
+    A = A.as_expr().subs(s, ds) * (z + 1)**N
+
+    # Simplify
+    H = B / A
+    B, A = sp.fraction(H.simplify())
+
+    # Group terms
+    B = sp.collect(sp.expand(B / z**N), 1 / z)
+    A = sp.collect(sp.expand(A / z**N), 1 / z)
+
+    # Store coefficients in order in a list
+    Bd = np.zeros(N + 1, dtype=object)
+    Ad = np.zeros(N + 1, dtype=object)
+    for n in range(N + 1):
+        Bd[n] = B.coeff(z, -n)
+        Ad[n] = A.coeff(z, -n)
+
+    return Bd, Ad
+
+
+def eval(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
+    """
+    eval returns the symbolic or real 
+    discretized  coefficients for a 
+    given array of coefficients b & a.
+
+    Parameters:
+    - b (list/array): Continuous b coefficients
+    - a (list/array): Continuous a coefficients
+    scheme: Discretization scheme.
+    srate: Samplerate.
+
+    Returns
+    Bd (np array), Ad (np array): B, A discretized
+    coefficients array, object type if symbolic, 
+    foat64 if numeric.
+    """
+    # Get discretized expressions
+    N = len(b)
+    B, A = coeffs(N - 1, scheme)
+
+    # Dictionary for substitution
+    dict = {}
+
+    # Substitute Ts
+    dict['T_s'] = 1. / srate
+
+    # Subsitute coeffs for given values
+    if isinstance(b, Number):
+        out_type = np.float64
+    else:
+        out_type = object
+
+    Bd = np.zeros(N, dtype=out_type)
+    Ad = np.zeros(N, dtype=out_type)
+    
+    # Shift to ascending order
+    b = b[::-1]
+    a = a[::-1]
+    for n in range(N):
+        dict['b_' + str(n)] = b[n]
+        dict['a_' + str(n)] = a[n]
+        
+    # Apply substitution
+    for n in range(N):
+        Bd[n] = B[n].subs(dict)
+        Ad[n] = A[n].subs(dict)
+    
+    return Bd, Ad
