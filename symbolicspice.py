@@ -3,6 +3,7 @@ import numpy as np
 import itertools
 import matplotlib.pyplot as plt
 from numbers import Number
+import warnings
 
 from components import AdmittanceComponent, Resistance, Capacitor, Inductance, VoltageSource, ExternalVoltageSource, CurrentSource, IdealOPA, Transformer, Gyrator
 import time 
@@ -68,11 +69,13 @@ class Circuit:
         """
         Creates a component object based on the input string. Very simple parser.
 
-        Parameters:
+        Parameters
+        ----------
         - netlist_line (str): A string representing a component in the netlist.
         - idx (int): The index of the component in the netlist (used to add a column and row to the initial A matrix).
 
-        Returns:
+        Returns
+        -------
         - component (Component): A component object.
         """
 
@@ -166,11 +169,13 @@ class Circuit:
 
         The solution is stored in the x_solution attribute of the Netlist object.
 
-        Parameters:
+        Parameters
+        ----------
         - simplify (bool): If True, simplify the solution. Notes that this can be time consuming.
         - use_symengine (bool): If True, use the symengine library to solve the system to speed up the process.
 
-        Returns:
+        Returns
+        -------
         - None
         """
         if not hasattr(self, 'A') or not hasattr(self, 'b') or not hasattr(self, 'x'):
@@ -198,21 +203,15 @@ class Circuit:
             self.x_solution = sp.simplify(self.x_solution)
 
 
-    def tf(self, output_node, input_node=1, norm = True, symb=True, z=False, fs=None):
+    def tf(self, output_node, input_node=1, norm = True):
         """
         Returns the b & a coefficients of the symbolic transfer function object of the netlist.
 
-        Parameters:
+        Parameters
+        ----------
         output_node (int): Node where the output is set.
         input_node (int): Node where Vin is set.
         norm (bool): Normalize coefficients (b/a0 & a/a0 if True).
-        symb (bool): Return symbolic (if True) or numeric coefficients.
-        z (int): Return analog (if 0) or digital coefficients.
-            - Possible schemes:
-                * Bilinear: 'blnr'
-                * Euler Forward: 'frwrd'
-                * Euler Backward: 'bckwrd'
-        fs (int): Sample rate for discrete transform if numeric.
         """
         # Ensure the system is solved:
         if not hasattr(self, 'x_solution'):
@@ -233,31 +232,18 @@ class Circuit:
 
         # Calculate the symbolic transfer function:
         H = output_Expr / input_Expr
+
         if self.capacitors or self.inductors:
             H = sp.cancel(sp.simplify(H), sp.symbols('s'))
         else:
             H = sp.simplify(H)
 
-        # Create tf object
+
         transfer_function = CircuitSymbolicTransferFunction(H, self.components)
-        # Normalize b a coefficients if norm set True
+
         if norm: transfer_function.normalized()
 
-        if symb == True:
-            b, a = transfer_function.symbolic_analog_filter_coefficients()
-        else:
-            b, a = transfer_function.numerical_analog_filter_coefficients()
-
-        if z != 0:
-            if symb == True:
-                b, a = eval(b, a, z)
-            else:
-                if fs == None:
-                    raise Exception("Samplerate was not given.")
-                
-                b, a = eval(b, a, z, fs)
-
-        return b, a
+        return transfer_function
 
     def display_components(self, components_list = None):
         """
@@ -368,7 +354,7 @@ class Circuit:
 
         return outlist
 
-def extract_symbolic_analog_filter_coefficients(H, polynomial_variable = sp.symbols('s')):
+def extract_symbolic_analog_coeffs(H, polynomial_variable = sp.symbols('s')):
     """
     Extract the coefficients of the numerator and denominator of a symbolic transfer function.
     """
@@ -398,7 +384,7 @@ class CircuitSymbolicTransferFunction:
         self.components = components
         self.b, self.a = None, None  #Symbolic analog filter coefficients
 
-    def symbolic_analog_filter_coefficients(self):
+    def symbolic_analog_coeffs(self):
         if self.b is None or self.a is None:
             num, denum = sp.fraction(self.sympyExpr)
             self.b = sp.Poly(num, sp.symbols('s')).all_coeffs()
@@ -412,7 +398,7 @@ class CircuitSymbolicTransferFunction:
         num, den = sp.fraction(self.sympyExpr)
 
         if self.b is None or self.a is None:
-            self.b, self.a = self.symbolic_analog_filter_coefficients()
+            self.b, self.a = self.symbolic_analog_coeffs()
 
         a0 = self.a[0]
         self.a = [coeff/a0 for coeff in self.a]
@@ -420,14 +406,14 @@ class CircuitSymbolicTransferFunction:
 
         self.sympyExpr = sp.Poly(self.b, sp.symbols('s')) / sp.Poly(self.a, sp.symbols('s'))
 
-    def numerical_analog_filter_coefficients(self, component_values=None, combination='nested'):
+    def numerical_analog_coeffs(self, component_values=None, combination='nested'):
         """
         Return the numerical coefficients `b_num` and `a_num` of the analog filter transfer function.
         The coefficients are calculated by substituting the component values in the symbolic transfer function.
 
         Notes
         -----
-        THIS NEEDS TO BE IMPROVED, IT'S NOT VERY ELERGANT.
+        THIS NEEDS TO BE IMPROVED, IT'S NOT VERY ELERGANT (there is some repetitive code).
 
         Parameters
         ----------
@@ -464,7 +450,7 @@ class CircuitSymbolicTransferFunction:
         """
 
         if self.b is None or self.a is None:
-            self.b, self.a = self.symbolic_analog_filter_coefficients()
+            self.b, self.a = self.symbolic_analog_coeffs()
         
         if component_values is None:
             component_values = {component.symbol: component.value for component in self.components}
@@ -477,9 +463,7 @@ class CircuitSymbolicTransferFunction:
         else:
             if combination == 'nested':
                 # Generate all combinations of provided component values
-                #reorder the components values in an increasing order of the len of the values array ? Don't know... If so :
-                #component_values = {key: value for key, value in sorted(component_values.items(), key=lambda item: len(item[1]))}
-
+                
                 keys, values = zip(*component_values.items())
                 combinations = list(itertools.product(*values))
 
@@ -533,6 +517,60 @@ class CircuitSymbolicTransferFunction:
             else:
                 raise ValueError("The 'combinations' argument must be either 'nested' or 'parallel'.")
 
+
+
+    def getcoeffs(self, values = 'symb', z = None, Fs = None, combination = 'nested'):
+        """
+        Return b & a coefficients of the transfer function.
+
+        Parameters
+        ----------
+        - values : 'symb', 'num', or dict like {'R1': [1e3, 2e6], 'R2': [3e2, 4e2]}
+            * If  'sym', return the symbolic coefficients.
+            * If  'num', return the numerical coefficients for the default values of the components set in the Circuit object.
+            * If a dictionary is provided, return the numerical coefficients for the given values.
+        - z : {'frwrd', 'bckwrd', 'blnr'}, or None, optional
+            The desired discretization scheme.
+            * If None, the function will return the analog filter coefficients.
+        - Fs : float, optional
+            The sampling frequency.
+        - combination : {'nested', 'parallel'}, optional
+            * If the `component_values` dictionary has multiple keys, the 'combinations' argument specifies how to combine the values.
+            * If the `component_values` dictionary has only one key, the 'combinations' argument is ignored
+        Returns
+        -------
+        b, a : np.array
+            The b & a coefficients of the transfer function.
+        """
+        
+        # First, we derive the analog filter coefficients:
+
+        if values == 'symb':
+            b, a = self.symbolic_analog_coeffs()
+        else:               
+            if values == 'num':
+                values = None
+            b, a = self.numerical_analog_coeffs(component_values=values, combination=combination)
+
+        
+        # Then we use the eval() function to derive the digital filter coefficients (if the user want) 
+        # corresponding to the analog filter coefficients, either they are symbolic or numerical.
+
+        if z is not None: #digital filter
+            if values == 'symb':
+                if isinstance(Fs, sp.Symbol):
+                    b, a = eval(b, a, z, Fs)
+                elif Fs is None:
+                    b, a = eval(b, a, z)
+                else:
+                    raise ValueError("The sampling frequency must be a symbolic variable if values = 'symb'.")
+            else:
+                if Fs == None:
+                    raise ValueError("Samplerate was not given.")
+                b, a = eval(b, a, z, Fs)
+        return b, a
+
+
     def __str__(self):
         return str(self.sympyExpr)
     
@@ -560,7 +598,7 @@ def plotTransfertFunction(f, h, legend=None, title=None, semilogx=True, dB=True,
     - h (array): frequency response array (complex) -> Max 3D array!
     - legend (dict or str): Legend of the different lines.
                             Use the same argument as component_values in the 
-                            numerical_analog_filter_coefficients() method if 
+                            numerical_analog_coeffs() method if 
                             you want a fast legend creation!
     - title (str): title of the plot
     - semilogx (bool): If True, use a logarithmic scale for the x-axis
@@ -684,11 +722,11 @@ def coeffs(N, scheme='blnr'):
     a = a[::-1]
     
     # Set scheme
-    if scheme == 'frwrd': # Forward Euler
+    if scheme == 'frwrd':       # Forward Euler
         ds = (z - 1) / Ts
-    elif scheme == 'bckwrd': # Backward Euler
+    elif scheme == 'bckwrd':    # Backward Euler
         ds = (z - 1) / Ts / z 
-    elif scheme == 'blnr': # Bilinear
+    elif scheme == 'blnr':      # Bilinear
         ds = 2 / Ts * (z - 1) / (z + 1) 
     else:
         raise Exception("Invalid scheme given")
@@ -723,7 +761,7 @@ def eval(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
     """
     eval returns the symbolic or real 
     discretized  coefficients for a 
-    given array of coefficients b & a.
+    given array of analog coefficients b & a.
 
     Parameters:
     - b (list/array): Continuous b coefficients
@@ -734,7 +772,7 @@ def eval(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
     Returns
     Bd (np array), Ad (np array): B, A discretized
     coefficients array, object type if symbolic, 
-    foat64 if numeric.
+    float64 if numeric.
     """
     # Get discretized expressions
     N = len(b)

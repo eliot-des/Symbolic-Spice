@@ -6,10 +6,11 @@ Created on Thur Jul 04 17:27:53 2024
 """
 
 
-from scipy.signal import freqs
+from scipy.signal import freqs, freqz
 import numpy as np
 import sympy as sp
-from symbolicspice import Circuit, plotTransfertFunction, loadnet
+from symbolicspice import Circuit, plotTransfertFunction
+import matplotlib.pyplot as plt
 
 #declaration of the circuit
 '''
@@ -29,7 +30,7 @@ inputList  =   ['Vin 1 0 1',
 
 # example with the "tone" stage architecture of the DOD 250 overdrive pedal
 # Values depends on the schematic found on the internet (but topology is correct)
-'''
+
 inputList  =   ['Vin 1 0 1',
                 'C1 1 0 0.01e-9',
                 'C2 1 2 10e-9',
@@ -49,7 +50,7 @@ inputList   =  ['Vin 1 0 1',
                 'OP1 3 4 4',
                 'R2 2 4 4824',
                 'R3 4 0 8',]       
-
+'''
 #declare a circuit object
 circuit = Circuit(inputList)
 #circuit = Circuit(r'FMV Tone Stack.net')
@@ -70,13 +71,18 @@ sp.pprint(sp.Eq(circuit.x, circuit.x_solution))
 
 # Get the symbolic transfer function between the output node and the input node
 # DONT FORGET TO CHANGE THE OUTPUT AND INPUT NODES ACCORDING TO YOUR NETLIST !
-b, a = circuit.tf(output_node = 4, norm=True)
+H = circuit.tf(output_node = 5, input_node=1, norm=True)
+
+sp.pprint(H.sympyExpr)
+
+b, a = H.getcoeffs()
+
 
 print(f'\nb coefficients :{b}')
 print(f'a coefficients :{a}')
 
-
-f = np.geomspace(20,20000, num=1000)
+Fs = 48000
+f = np.geomspace(1, Fs/2, num=1000)
 w = 2*np.pi*f
 
 
@@ -87,23 +93,51 @@ w = 2*np.pi*f
 '''
 component_values = {'C3': np.array([10e-12, 22e-12, 50e-12]),
                     'R4': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3])}
-b_num, a_num =  H.numerical_analog_filter_coefficients(component_values)
+
+b_num, a_num =  H.numerical_analog_coeffs(component_values, combination='parallel')
+print(b_num.shape)
 
 h = np.array([[freqs(b_num[i][j], a_num[i][j], worN=w)[1] for j in range(len(a_num[i]))] for i in range(len(b_num))])
 plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, phase=True)
 '''
 
-
+#, 'R2': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3])
 #2D Case
-component_values = {'R1': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3]), 'R2': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3])}
-# b_num, a_num =  H.numerical_analog_filter_coefficients(component_values, combination='parallel')
+component_values = {'R4': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3])}
+b_num, a_num =  H.getcoeffs(component_values, z=None, combination='parallel')
 
-h = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(a_num))])
-plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, phase=True)
+h_analog = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(a_num))])
+plotTransfertFunction(f, h_analog, legend = component_values, semilogx=True, dB=True, phase=True)
+
+
+b_num_dig, a_num_dig =  H.getcoeffs(values='num', z='blnr', Fs = Fs, combination='parallel')
+
+
+#we should not have to convert the coefficients to float64, it should be done automatically...
+b_num_dig = np.array(b_num_dig, dtype=np.float64) 
+a_num_dig = np.array(a_num_dig, dtype=np.float64)
+
+print(f'\nb coefficients DIGIT :{b_num_dig}')
+print(f'a coefficients DIGIT:{a_num_dig}')
+
+
+
+#h_discrete = np.array([freqz(b_num_discrete[i], a_num_discrete[i], worN=f)[1] for i in range(len(a_num_discrete))])
+_, h_discrete = freqz(b_num_dig, a_num_dig, worN=f, fs=Fs)
+
+
+fig, ax = plt.subplots(2, 1, figsize=(10, 10))
+ax[0].semilogx(f, 20*np.log10(np.abs(h_analog[0])), label='Analog')
+ax[0].semilogx(f, 20*np.log10(np.abs(h_discrete)),'--', label='Discrete')
+ax[1].semilogx(f, np.angle(h_analog[0]), label='Analog')
+ax[1].semilogx(f, np.angle(h_discrete), '--', label='Discrete')
+
+plt.show()
+
 
 '''
 #1D Case
-b_num, a_num =  H.numerical_analog_filter_coefficients()
+b_num, a_num =  H.numerical_analog_coeffs()
 
 _, h = freqs(b_num, a_num, worN=w)
 plotTransfertFunction(f, h, legend='test', semilogx=True, dB=True, phase=True)
