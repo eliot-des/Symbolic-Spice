@@ -560,15 +560,15 @@ class CircuitSymbolicTransferFunction:
         if z is not None:
             if values == 'symb':
                 if isinstance(Fs, sp.Symbol):
-                    b, a = eval(b, a, z, Fs)
+                    b, a = dig_coeffs(b, a, z, Fs)
                 elif Fs is None:
-                    b, a = eval(b, a, z)
+                    b, a = dig_coeffs(b, a, z)
                 else:
                     raise ValueError("The sampling frequency must be a symbolic variable if values = 'symb'.")
             else:
                 if Fs == None:
                     raise ValueError("Samplerate was not given.")
-                b, a = eval(b, a, z, Fs)
+                b, a = dig_coeffs(b, a, z, Fs)
         return b, a
 
 
@@ -696,7 +696,7 @@ def plot_legend(ax, h, legend, colors, linestyles):
                 ax[0].plot([], [], '-', color=colors[i % colors_nbr], label=f'{last_key}: {last_key_values[i]}')
         ax[0].legend(loc='best')
 
-def coeffs(N, scheme='blnr'):
+def gen_dig_coeffs(N, scheme='blnr'):
     """
     Returns the symbolic discretized coefficients for a given order N & discretization scheme.
 
@@ -712,6 +712,8 @@ def coeffs(N, scheme='blnr'):
     b = sp.symbols(f'a_0:{N + 1}')[::-1]
     a = sp.symbols(f'b_0:{N + 1}')[::-1]
 
+    #create a dictionary of the different discretization schemes
+    #therefore, additonal schemes can be added easily
     schemes = {
         'frwrd': (z - 1) / Ts,
         'bckwrd': (z - 1) / (Ts * z),
@@ -738,7 +740,7 @@ def coeffs(N, scheme='blnr'):
 
 
 
-def eval(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
+def sub_dig_coeffs(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
     """
     Returns the symbolic or real discretized coefficients for a given array of analog coefficients.
 
@@ -772,7 +774,7 @@ def eval(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
 
 
 
-def eval_(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
+def dig_coeffs(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
     """
     Returns the symbolic or real discretized coefficients for a given array of analog coefficients.
 
@@ -788,24 +790,19 @@ def eval_(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
     """
     b = np.asarray(b)
     a = np.asarray(a)
-    print('test')
-    print(b)
-    print(a)
+
 
     if b.shape != a.shape:
         raise ValueError("Shapes of b and a must be the same.")
-    print(b.shape)
-    Bd = np.empty_like(b, dtype=np.float64)
+
+    Bd = np.empty_like(b)
     Ad = np.empty_like(a)
 
-    it = np.nditer(Bd[0,...], flags=['multi_index'])
+    #we must iter on b and a by keeping b and a as array, because this a list of coefficient associated to a given filter.
+    it = np.nditer(b[..., 0], flags=['multi_index'])
 
-    #we must iter on b and a by keeping b and a as array, because this a list of coefficient assoictaed to a given filter.
     for _ in it:
         idx = it.multi_index
-        print(f'b_idx:{b[idx]}')
-        print(f'a_idx:{a[idx]}')
         Bd[idx], Ad[idx] = transform_coeffs(b[idx], a[idx], scheme, srate)
         
-
     return Bd, Ad

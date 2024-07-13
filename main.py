@@ -19,7 +19,7 @@ inputList  =   ['Vin 1 0 1',
                 'L1 1 2 2.29e-3',
                 'R1 2 0 8']
 
-'''
+
 # example with an active low-shelf filter with OPA 
 inputList  =   ['Vin 1 0 1',
                 'OP1 1 2 3',
@@ -30,7 +30,7 @@ inputList  =   ['Vin 1 0 1',
 
 # example with the "tone" stage architecture of the DOD 250 overdrive pedal
 # Values depends on the schematic found on the internet (but topology is correct)
-
+'''
 inputList  =   ['Vin 1 0 1',
                 'C1 1 0 0.01e-9',
                 'C2 1 2 10e-9',
@@ -57,8 +57,8 @@ circuit = Circuit(inputList)
 #circuit.display_components()
 circuit.stamp_system()
 circuit.print_system()
-
 '''
+
 # Solve the system :
 # The Code in this block can be useful if you want 
 # to see the symbolic solution of the x vector.
@@ -103,39 +103,31 @@ plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, p
 
 #, 'R2': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3])
 #2D Case
-component_values = {'R4': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3])}
+component_values = {'R4': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3]), 'R5': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3])}
 b_num, a_num =  H.getcoeffs(component_values, z=None, combination='parallel')
+b_num_dig, a_num_dig =  H.getcoeffs(values=component_values, z='blnr', Fs= Fs, combination='parallel')
+
 
 h_analog = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(a_num))])
+h_discrete = np.array([freqz(b_num_dig[i], a_num_dig[i], worN=f, fs=Fs)[1] for i in range(len(a_num_dig))])
+
+
 plotTransfertFunction(f, h_analog, legend = component_values, semilogx=True, dB=True, phase=True)
 
-
-b_num_dig, a_num_dig =  H.getcoeffs(values='num', z='blnr', Fs = Fs, combination='parallel')
-
-
-#we should not have to convert the coefficients to float64, it should be done automatically...
-b_num_dig = np.array(b_num_dig, dtype=np.float64) 
-a_num_dig = np.array(a_num_dig, dtype=np.float64)
-
-print(f'\nb coefficients DIGIT :{b_num_dig}')
-print(f'a coefficients DIGIT:{a_num_dig}')
-
-
-
-#h_discrete = np.array([freqz(b_num_discrete[i], a_num_discrete[i], worN=f)[1] for i in range(len(a_num_discrete))])
-_, h_discrete = freqz(b_num_dig, a_num_dig, worN=f, fs=Fs)
-
+plotTransfertFunction(f, h_discrete, legend = component_values, semilogx=True, dB=True, phase=True)
 
 fig, ax = plt.subplots(2, 1, figsize=(10, 10))
-ax[0].semilogx(f, 20*np.log10(np.abs(h_analog[0])), label='Analog')
-ax[0].semilogx(f, 20*np.log10(np.abs(h_discrete)),'--', label='Discrete')
-ax[1].semilogx(f, np.angle(h_analog[0]), label='Analog')
-ax[1].semilogx(f, np.angle(h_discrete), '--', label='Discrete')
+
+for i in range (len(h_analog)):
+    ax[0].semilogx(f, 20*np.log10(np.abs(h_analog[i])), label='Analog')
+    ax[0].semilogx(f, 20*np.log10(np.abs(h_discrete[i])),'b--', label='Discrete')
+    ax[1].semilogx(f, np.angle(h_analog[i]), label='Analog')
+    ax[1].semilogx(f, np.angle(h_discrete[i]), 'b--', label='Discrete')
 
 plt.show()
 
-
 '''
+
 #1D Case
 b_num, a_num =  H.numerical_analog_coeffs()
 
