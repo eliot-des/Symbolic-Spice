@@ -105,7 +105,7 @@ plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, p
 #2D Case
 component_values = {'R4': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3]), 'R5': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3])}
 b_num, a_num =  H.getcoeffs(component_values, z=None, combination='parallel')
-b_num_dig, a_num_dig =  H.getcoeffs(values=component_values, z='blnr', Fs= Fs, combination='parallel')
+b_num_dig, a_num_dig =  H.getcoeffs(values=component_values, z='bckwrd', Fs= Fs, combination='parallel')
 
 
 h_analog = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(a_num))])
@@ -120,9 +120,9 @@ fig, ax = plt.subplots(2, 1, figsize=(10, 10))
 
 for i in range (len(h_analog)):
     ax[0].semilogx(f, 20*np.log10(np.abs(h_analog[i])), label='Analog')
-    ax[0].semilogx(f, 20*np.log10(np.abs(h_discrete[i])),'b--', label='Discrete')
+    ax[0].semilogx(f, 20*np.log10(np.abs(h_discrete[i])),'--', label='Discrete')
     ax[1].semilogx(f, np.angle(h_analog[i]), label='Analog')
-    ax[1].semilogx(f, np.angle(h_discrete[i]), 'b--', label='Discrete')
+    ax[1].semilogx(f, np.angle(h_discrete[i]), '--', label='Discrete')
 
 plt.show()
 
