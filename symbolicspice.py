@@ -755,7 +755,7 @@ def sub_dig_coeffs(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
     - Ad (np.array): Discretized denominator coefficients.
     """
     N = len(b)
-    B, A = coeffs(N - 1, scheme)
+    B, A = gen_dig_coeffs(N - 1, scheme)
     subs_dict = {'T_s': 1. / srate}
 
     b, a = b[::-1], a[::-1]
@@ -764,11 +764,12 @@ def sub_dig_coeffs(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
         subs_dict[f'a_{n}'] = a[n]
 
     if all(isinstance(coeff, (int, float)) for coeff in b + a):
-        Bd = np.array([float(B[n].subs(subs_dict)) for n in range(N)], dtype=np.float64)
-        Ad = np.array([float(A[n].subs(subs_dict)) for n in range(N)], dtype=np.float64)
+        out_type=np.float64
     else:
-        Bd = np.array([B[n].subs(subs_dict) for n in range(N)], dtype=object)
-        Ad = np.array([A[n].subs(subs_dict) for n in range(N)], dtype=object)
+        out_type = object
+
+    Bd = np.array([B[n].subs(subs_dict) for n in range(N)], dtype=out_type)
+    Ad = np.array([A[n].subs(subs_dict) for n in range(N)], dtype=out_type)
 
     return Bd, Ad
 
