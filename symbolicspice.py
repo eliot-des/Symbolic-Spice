@@ -557,7 +557,7 @@ class CircuitSymbolicTransferFunction:
         # Then we use the eval() function to derive the digital filter coefficients (if the user want) 
         # corresponding to the analog filter coefficients, either they are symbolic or numerical.
 
-        if z is not None: #digital filter
+        if z is not None:
             if values == 'symb':
                 if isinstance(Fs, sp.Symbol):
                     b, a = eval(b, a, z, Fs)
@@ -786,7 +786,7 @@ def eval(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
     dict['T_s'] = 1. / srate
 
     # Subsitute coeffs for given values
-    if isinstance(b, Number):
+    if all(isinstance(coeff, (int, float)) for coeff in b + a):
         out_type = np.float64
     else:
         out_type = object
