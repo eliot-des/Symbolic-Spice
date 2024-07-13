@@ -698,112 +698,74 @@ def plot_legend(ax, h, legend, colors, linestyles):
 
 def coeffs(N, scheme='blnr'):
     """
-    coeffs returns the symbolic discretized 
-    coefficients for a given order N & 
-    discretization scheme. (frwrd, bckwrd, blnr)
+    Returns the symbolic discretized coefficients for a given order N & discretization scheme.
 
     Parameters:
-    - N (int): Order of transfer function
-    scheme: Desired discretization scheme.
+    - N (int): Order of transfer function.
+    - scheme (str): Desired discretization scheme ('frwrd', 'bckwrd', 'blnr').
 
-    Returns
-    Bd (np array), Ad (np array): B, A discretized
-    coefficients array, object type.
+    Returns:
+    - Bd (np.array): Discretized numerator coefficients.
+    - Ad (np.array): Discretized denominator coefficients.
     """
-    # Necessary symbols
-    s = sp.Symbol('s') # Laplace domain
-    z = sp.Symbol('z') # Z domain
-    Ts = sp.Symbol('T_s') # Sample period
+    s, z, Ts = sp.symbols('s z T_s')
+    b = sp.symbols(f'a_0:{N + 1}')[::-1]
+    a = sp.symbols(f'b_0:{N + 1}')[::-1]
 
-    # Create symbolic coeffs using
-    # poly order # a_n + a_{n-1} * s + a_{n-2} * s^2 + ... a_0 * s^N
-    b = sp.symbols('a_0:' + str(N + 1))
-    b = b[::-1]
-    a = sp.symbols('b_0:' + str(N + 1))
-    a = a[::-1]
-    
-    # Set scheme
-    if scheme == 'frwrd':       # Forward Euler
-        ds = (z - 1) / Ts
-    elif scheme == 'bckwrd':    # Backward Euler
-        ds = (z - 1) / Ts / z 
-    elif scheme == 'blnr':      # Bilinear
-        ds = 2 / Ts * (z - 1) / (z + 1) 
-    else:
-        raise Exception("Invalid scheme given")
+    schemes = {
+        'frwrd': (z - 1) / Ts,
+        'bckwrd': (z - 1) / (Ts * z),
+        'blnr': 2 / Ts * (z - 1) / (z + 1)
+    }
 
-    # Create variables
-    B = sp.Poly(a, s)
-    A = sp.Poly(b, s)
+    if scheme not in schemes:
+        raise ValueError("Invalid scheme given")
 
-    # Replace s for chosen method
-    B = B.as_expr().subs(s, ds) * (z + 1)**N
-    A = A.as_expr().subs(s, ds) * (z + 1)**N
+    ds = schemes[scheme]
+    B = sp.Poly(a, s).as_expr().subs(s, ds) * (z + 1)**N
+    A = sp.Poly(b, s).as_expr().subs(s, ds) * (z + 1)**N
 
-    # Simplify
-    H = B / A
-    B, A = sp.fraction(H.simplify())
+    H = sp.simplify(B / A)
+    B, A = sp.fraction(H)
 
-    # Group terms
     B = sp.collect(sp.expand(B / z**N), 1 / z)
     A = sp.collect(sp.expand(A / z**N), 1 / z)
 
-    # Store coefficients in order in a list
-    Bd = np.zeros(N + 1, dtype=object)
-    Ad = np.zeros(N + 1, dtype=object)
-    for n in range(N + 1):
-        Bd[n] = B.coeff(z, -n)
-        Ad[n] = A.coeff(z, -n)
+    Bd = [B.coeff(z, -n) for n in range(N + 1)]
+    Ad = [A.coeff(z, -n) for n in range(N + 1)]
 
     return Bd, Ad
 
 
 def eval(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
     """
-    eval returns the symbolic or real 
-    discretized  coefficients for a 
-    given array of analog coefficients b & a.
+    Returns the symbolic or real discretized coefficients for a given array of analog coefficients.
 
     Parameters:
-    - b (list/array): Continuous b coefficients
-    - a (list/array): Continuous a coefficients
-    scheme: Discretization scheme.
-    srate: Samplerate.
+    - b (list/array): Continuous b coefficients.
+    - a (list/array): Continuous a coefficients.
+    - scheme (str): Discretization scheme ('frwrd', 'bckwrd', 'blnr').
+    - srate (float or sympy.Symbol): Samplerate.
 
-    Returns
-    Bd (np array), Ad (np array): B, A discretized
-    coefficients array, object type if symbolic, 
-    float64 if numeric.
+    Returns:
+    - Bd (np.array): Discretized numerator coefficients.
+    - Ad (np.array): Discretized denominator coefficients.
     """
-    # Get discretized expressions
     N = len(b)
     B, A = coeffs(N - 1, scheme)
+    subs_dict = {'T_s': 1. / srate}
 
-    # Dictionary for substitution
-    dict = {}
+    b, a = b[::-1], a[::-1]
+    for n in range(N):
+        subs_dict[f'b_{n}'] = b[n]
+        subs_dict[f'a_{n}'] = a[n]
 
-    # Substitute Ts
-    dict['T_s'] = 1. / srate
-
-    # Subsitute coeffs for given values
     if all(isinstance(coeff, (int, float)) for coeff in b + a):
         out_type = np.float64
     else:
         out_type = object
+         
+    Bd = np.array([B[n].subs(subs_dict) for n in range(N)], dtype=out_type)
+    Ad = np.array([A[n].subs(subs_dict) for n in range(N)], dtype=out_type)
 
-    Bd = np.zeros(N, dtype=out_type)
-    Ad = np.zeros(N, dtype=out_type)
-    
-    # Shift to ascending order
-    b = b[::-1]
-    a = a[::-1]
-    for n in range(N):
-        dict['b_' + str(n)] = b[n]
-        dict['a_' + str(n)] = a[n]
-        
-    # Apply substitution
-    for n in range(N):
-        Bd[n] = B[n].subs(dict)
-        Ad[n] = A[n].subs(dict)
-    
     return Bd, Ad
