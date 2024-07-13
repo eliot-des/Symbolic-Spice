@@ -393,14 +393,14 @@ class CircuitSymbolicTransferFunction:
 
     def normalized(self):
         '''
-        Normalize the transfer function to have self.a[0] = 1.
+        Normalize the transfer function to have self.a[-1] = 1.
         '''
         num, den = sp.fraction(self.sympyExpr)
 
         if self.b is None or self.a is None:
             self.b, self.a = self.symbolic_analog_coeffs()
 
-        a0 = self.a[0]
+        a0 = self.a[-1]
         self.a = [coeff/a0 for coeff in self.a]
         self.b = [coeff/a0 for coeff in self.b]
 
