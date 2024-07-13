@@ -547,10 +547,11 @@ class CircuitSymbolicTransferFunction:
 
         if values == 'symb':
             b, a = self.symbolic_analog_coeffs()
-        else:               
-            if values == 'num':
-                values = None
-            b, a = self.numerical_analog_coeffs(component_values=values, combination=combination)
+        elif values == 'num' or isinstance(values, dict):
+            component_values = None if values == 'num' else values
+            b, a = self.numerical_analog_coeffs(component_values=component_values, combination=combination)
+        else:
+            raise ValueError("The 'values' argument must be either 'symb', 'num', or a dictionary of component values.")
 
         
         # Then we use the eval() function to derive the digital filter coefficients (if the user want) 
