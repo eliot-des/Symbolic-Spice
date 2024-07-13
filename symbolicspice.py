@@ -571,6 +571,117 @@ class CircuitSymbolicTransferFunction:
                 b, a = dig_coeffs(b, a, z, Fs)
         return b, a
 
+    def gen_dig_coeffs(N, scheme='blnr'):
+        """
+        Returns the symbolic discretized coefficients for a given order N & discretization scheme.
+
+        Parameters:
+        - N (int): Order of transfer function.
+        - scheme (str): Desired discretization scheme ('frwrd', 'bckwrd', 'blnr').
+
+        Returns:
+        - Bd (np.array): Discretized numerator coefficients.
+        - Ad (np.array): Discretized denominator coefficients.
+        """
+        s, z, Ts = sp.symbols('s z T_s')
+        b = sp.symbols(f'a_0:{N + 1}')[::-1]
+        a = sp.symbols(f'b_0:{N + 1}')[::-1]
+
+        #create a dictionary of the different discretization schemes
+        #therefore, additonal schemes can be added easily
+        schemes = {
+            'frwrd': (z - 1) / Ts,
+            'bckwrd': (z - 1) / (Ts * z),
+            'blnr': 2 / Ts * (z - 1) / (z + 1)
+        }
+
+        if scheme not in schemes:
+            raise ValueError("Invalid scheme given")
+
+        ds = schemes[scheme]
+        B = sp.Poly(a, s).as_expr().subs(s, ds) * (z + 1)**N
+        A = sp.Poly(b, s).as_expr().subs(s, ds) * (z + 1)**N
+
+        H = sp.simplify(B / A)
+        B, A = sp.fraction(H)
+
+        B = sp.collect(sp.expand(B / z**N), 1 / z)
+        A = sp.collect(sp.expand(A / z**N), 1 / z)
+
+        Bd = [B.coeff(z, -n) for n in range(N + 1)]
+        Ad = [A.coeff(z, -n) for n in range(N + 1)]
+
+        return Bd, Ad
+
+
+
+    def sub_dig_coeffs(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
+        """
+        Returns the symbolic or real discretized coefficients for a given array of analog coefficients.
+
+        Parameters:
+        - b (list/array): Continuous b coefficients.
+        - a (list/array): Continuous a coefficients.
+        - scheme (str): Discretization scheme ('frwrd', 'bckwrd', 'blnr').
+        - srate (float or sympy.Symbol): Samplerate.
+
+        Returns:
+        - Bd (np.array): Discretized numerator coefficients.
+        - Ad (np.array): Discretized denominator coefficients.
+        """
+        N = len(b)
+        B, A = gen_dig_coeffs(N - 1, scheme)
+        subs_dict = {'T_s': 1. / srate}
+
+        b, a = b[::-1], a[::-1]
+        for n in range(N):
+            subs_dict[f'b_{n}'] = b[n]
+            subs_dict[f'a_{n}'] = a[n]
+
+        if all(isinstance(coeff, (int, float)) for coeff in b + a):
+            out_type=np.float64
+        else:
+            out_type = object
+
+        Bd = np.array([B[n].subs(subs_dict) for n in range(N)], dtype=out_type)
+        Ad = np.array([A[n].subs(subs_dict) for n in range(N)], dtype=out_type)
+
+        return Bd, Ad
+
+
+
+    def dig_coeffs(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
+        """
+        Returns the symbolic or real discretized coefficients for a given array of analog coefficients.
+
+        Parameters:
+        - b (list/array): Continuous b coefficients.
+        - a (list/array): Continuous a coefficients.
+        - scheme (str): Discretization scheme ('frwrd', 'bckwrd', 'blnr').
+        - srate (float or sympy.Symbol): Samplerate.
+
+        Returns:
+        - Bd (np.array): Discretized numerator coefficients.
+        - Ad (np.array): Discretized denominator coefficients.
+        """
+        b = np.asarray(b)
+        a = np.asarray(a)
+
+
+        if b.shape != a.shape:
+            raise ValueError("Shapes of b and a must be the same.")
+
+        Bd = np.empty_like(b)
+        Ad = np.empty_like(a)
+
+        #we must iter on b and a by keeping b and a as array, because this a list of coefficient associated to a given filter.
+        it = np.nditer(b[..., 0], flags=['multi_index'])
+
+        for _ in it:
+            idx = it.multi_index
+            Bd[idx], Ad[idx] = sub_dig_coeffs(b[idx], a[idx], scheme, srate)
+            
+        return Bd, Ad
 
     def __str__(self):
         return str(self.sympyExpr)
@@ -696,114 +807,4 @@ def plot_legend(ax, h, legend, colors, linestyles):
                 ax[0].plot([], [], '-', color=colors[i % colors_nbr], label=f'{last_key}: {last_key_values[i]}')
         ax[0].legend(loc='best')
 
-def gen_dig_coeffs(N, scheme='blnr'):
-    """
-    Returns the symbolic discretized coefficients for a given order N & discretization scheme.
 
-    Parameters:
-    - N (int): Order of transfer function.
-    - scheme (str): Desired discretization scheme ('frwrd', 'bckwrd', 'blnr').
-
-    Returns:
-    - Bd (np.array): Discretized numerator coefficients.
-    - Ad (np.array): Discretized denominator coefficients.
-    """
-    s, z, Ts = sp.symbols('s z T_s')
-    b = sp.symbols(f'a_0:{N + 1}')[::-1]
-    a = sp.symbols(f'b_0:{N + 1}')[::-1]
-
-    #create a dictionary of the different discretization schemes
-    #therefore, additonal schemes can be added easily
-    schemes = {
-        'frwrd': (z - 1) / Ts,
-        'bckwrd': (z - 1) / (Ts * z),
-        'blnr': 2 / Ts * (z - 1) / (z + 1)
-    }
-
-    if scheme not in schemes:
-        raise ValueError("Invalid scheme given")
-
-    ds = schemes[scheme]
-    B = sp.Poly(a, s).as_expr().subs(s, ds) * (z + 1)**N
-    A = sp.Poly(b, s).as_expr().subs(s, ds) * (z + 1)**N
-
-    H = sp.simplify(B / A)
-    B, A = sp.fraction(H)
-
-    B = sp.collect(sp.expand(B / z**N), 1 / z)
-    A = sp.collect(sp.expand(A / z**N), 1 / z)
-
-    Bd = [B.coeff(z, -n) for n in range(N + 1)]
-    Ad = [A.coeff(z, -n) for n in range(N + 1)]
-
-    return Bd, Ad
-
-
-
-def sub_dig_coeffs(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
-    """
-    Returns the symbolic or real discretized coefficients for a given array of analog coefficients.
-
-    Parameters:
-    - b (list/array): Continuous b coefficients.
-    - a (list/array): Continuous a coefficients.
-    - scheme (str): Discretization scheme ('frwrd', 'bckwrd', 'blnr').
-    - srate (float or sympy.Symbol): Samplerate.
-
-    Returns:
-    - Bd (np.array): Discretized numerator coefficients.
-    - Ad (np.array): Discretized denominator coefficients.
-    """
-    N = len(b)
-    B, A = gen_dig_coeffs(N - 1, scheme)
-    subs_dict = {'T_s': 1. / srate}
-
-    b, a = b[::-1], a[::-1]
-    for n in range(N):
-        subs_dict[f'b_{n}'] = b[n]
-        subs_dict[f'a_{n}'] = a[n]
-
-    if all(isinstance(coeff, (int, float)) for coeff in b + a):
-        out_type=np.float64
-    else:
-        out_type = object
-
-    Bd = np.array([B[n].subs(subs_dict) for n in range(N)], dtype=out_type)
-    Ad = np.array([A[n].subs(subs_dict) for n in range(N)], dtype=out_type)
-
-    return Bd, Ad
-
-
-
-def dig_coeffs(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
-    """
-    Returns the symbolic or real discretized coefficients for a given array of analog coefficients.
-
-    Parameters:
-    - b (list/array): Continuous b coefficients.
-    - a (list/array): Continuous a coefficients.
-    - scheme (str): Discretization scheme ('frwrd', 'bckwrd', 'blnr').
-    - srate (float or sympy.Symbol): Samplerate.
-
-    Returns:
-    - Bd (np.array): Discretized numerator coefficients.
-    - Ad (np.array): Discretized denominator coefficients.
-    """
-    b = np.asarray(b)
-    a = np.asarray(a)
-
-
-    if b.shape != a.shape:
-        raise ValueError("Shapes of b and a must be the same.")
-
-    Bd = np.empty_like(b)
-    Ad = np.empty_like(a)
-
-    #we must iter on b and a by keeping b and a as array, because this a list of coefficient associated to a given filter.
-    it = np.nditer(b[..., 0], flags=['multi_index'])
-
-    for _ in it:
-        idx = it.multi_index
-        Bd[idx], Ad[idx] = sub_dig_coeffs(b[idx], a[idx], scheme, srate)
-        
-    return Bd, Ad
