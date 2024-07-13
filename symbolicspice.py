@@ -737,6 +737,7 @@ def coeffs(N, scheme='blnr'):
     return Bd, Ad
 
 
+
 def eval(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
     """
     Returns the symbolic or real discretized coefficients for a given array of analog coefficients.
@@ -761,11 +762,50 @@ def eval(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
         subs_dict[f'a_{n}'] = a[n]
 
     if all(isinstance(coeff, (int, float)) for coeff in b + a):
-        out_type = np.float64
+        Bd = np.array([float(B[n].subs(subs_dict)) for n in range(N)], dtype=np.float64)
+        Ad = np.array([float(A[n].subs(subs_dict)) for n in range(N)], dtype=np.float64)
     else:
-        out_type = object
-         
-    Bd = np.array([B[n].subs(subs_dict) for n in range(N)], dtype=out_type)
-    Ad = np.array([A[n].subs(subs_dict) for n in range(N)], dtype=out_type)
+        Bd = np.array([B[n].subs(subs_dict) for n in range(N)], dtype=object)
+        Ad = np.array([A[n].subs(subs_dict) for n in range(N)], dtype=object)
+
+    return Bd, Ad
+
+
+
+def eval_(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
+    """
+    Returns the symbolic or real discretized coefficients for a given array of analog coefficients.
+
+    Parameters:
+    - b (list/array): Continuous b coefficients.
+    - a (list/array): Continuous a coefficients.
+    - scheme (str): Discretization scheme ('frwrd', 'bckwrd', 'blnr').
+    - srate (float or sympy.Symbol): Samplerate.
+
+    Returns:
+    - Bd (np.array): Discretized numerator coefficients.
+    - Ad (np.array): Discretized denominator coefficients.
+    """
+    b = np.asarray(b)
+    a = np.asarray(a)
+    print('test')
+    print(b)
+    print(a)
+
+    if b.shape != a.shape:
+        raise ValueError("Shapes of b and a must be the same.")
+    print(b.shape)
+    Bd = np.empty_like(b, dtype=np.float64)
+    Ad = np.empty_like(a)
+
+    it = np.nditer(Bd[0,...], flags=['multi_index'])
+
+    #we must iter on b and a by keeping b and a as array, because this a list of coefficient assoictaed to a given filter.
+    for _ in it:
+        idx = it.multi_index
+        print(f'b_idx:{b[idx]}')
+        print(f'a_idx:{a[idx]}')
+        Bd[idx], Ad[idx] = transform_coeffs(b[idx], a[idx], scheme, srate)
+        
 
     return Bd, Ad
