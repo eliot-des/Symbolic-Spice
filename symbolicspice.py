@@ -804,6 +804,6 @@ def dig_coeffs(b, a, scheme='blnr', srate=sp.Symbol('F_s')):
 
     for _ in it:
         idx = it.multi_index
-        Bd[idx], Ad[idx] = transform_coeffs(b[idx], a[idx], scheme, srate)
+        Bd[idx], Ad[idx] = sub_dig_coeffs(b[idx], a[idx], scheme, srate)
         
     return Bd, Ad
