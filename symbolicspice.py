@@ -243,21 +243,6 @@ class Circuit:
 
         return transfer_function
 
-    def display_components(self, components_list = None):
-        """
-        Print the circuit's components. By default print all the components.
-        The argument components_list can be the voltageSources, currentSources or passiveComponents of the circuit.
-        """
-        if components_list is None:
-            components_list = self.components
-
-        strLine = '------------------------+--------+-------+-------+-----------------+-------------' 
-        print(strLine)
-        print(f" {'Type':<22} | {'Symbol':^6} | {'Start':^5} | {'End':^5} | {'Admittance':^15} | {'Value':^11} ")
-        print(strLine)
-        for component in components_list:
-            print(f" {str(component):<22} | {str(component.symbol):^6} | {component.start_node:^5} | {component.end_node:^5} | {str(component.admittance):^15} | {component.value:^11} ")
-        print(strLine)
 
     def __loadnet(self, fname):
         """
@@ -351,17 +336,6 @@ class Circuit:
             outlist.append(' '.join(str(item) for item in netlist[n,:]))
 
         return outlist
-
-def extract_symbolic_analog_coeffs(H, polynomial_variable = sp.symbols('s')):
-    """
-    Extract the coefficients of the numerator and denominator of a symbolic transfer function.
-    """
-    num, den = sp.fraction(H)
-
-    num = sp.Poly(num, polynomial_variable)
-    den = sp.Poly(den, polynomial_variable)
-
-    return num.all_coeffs(), den.all_coeffs()
 
 
 
