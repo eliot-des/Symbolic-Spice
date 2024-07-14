@@ -411,10 +411,6 @@ class CircuitSymbolicTransferFunction:
         Return the numerical coefficients `b_num` and `a_num` of the analog filter transfer function.
         The coefficients are calculated by substituting the component values in the symbolic transfer function.
 
-        Notes
-        -----
-        THIS NEEDS TO BE IMPROVED, IT'S NOT VERY ELERGANT (there is some repetitive code).
-
         Parameters
         ----------
         component_values : {None, dict}, optional
@@ -460,63 +456,31 @@ class CircuitSymbolicTransferFunction:
 
             return b_num, a_num
 
+        keys, values = zip(*component_values.items())
+
+        if combination == 'nested':
+            combinations = list(itertools.product(*values))
+            shape = [len(values_set) for values_set in values] + [len(self.b)]
+        elif combination == 'parallel':
+            if not all(len(value) == len(values[0]) for value in values):
+                raise ValueError("All values in the component_values dictionary must have the same length if 'parallel' is selected.")
+            combinations = list(zip(*values))
+            shape = (len(combinations), len(self.b))
         else:
-            if combination == 'nested':
-                # Generate all combinations of provided component values
-                
-                keys, values = zip(*component_values.items())
-                combinations = list(itertools.product(*values))
+            raise ValueError("The 'combinations' argument must be either 'nested' or 'parallel'.")
 
-                b_num = []
-                a_num = []
-                
-                for combination in combinations:
-                    substitutions = {
-                        component.symbol: combination[keys.index(str(component.symbol))] 
-                        if str(component.symbol) in keys else component.value 
-                        for component in self.components
-                    }
+        b_num, a_num = [], []
+        for comb in combinations:
+            substitutions = { component.symbol: comb[keys.index(str(component.symbol))]
+                            if str(component.symbol) in keys else component.value for component in self.components}
 
-                    b_num_temp = [float(coeff.subs(substitutions)) for coeff in self.b]
-                    a_num_temp = [float(coeff.subs(substitutions)) for coeff in self.a]
+            b_num_temp = [float(coeff.subs(substitutions)) for coeff in self.b]
+            a_num_temp = [float(coeff.subs(substitutions)) for coeff in self.a]
 
-                    b_num.append(b_num_temp)
-                    a_num.append(a_num_temp)
-                
-                # Reshape the results
-                shape = [len(values) for values in component_values.values()] + [len(self.b)]
-                
-                b_num = np.array(b_num).reshape(shape)
-                a_num = np.array(a_num).reshape(shape)
-            
-                return b_num, a_num
-                
-            elif combination == 'parallel':
-                keys, values = zip(*component_values.items())
+            b_num.append(b_num_temp)
+            a_num.append(a_num_temp)
 
-                if not all(len(value) == len(values[0]) for value in values):
-                    raise ValueError("All values in the component_values dictionary must have the same length.")
-
-                b_num = []
-                a_num = []
-
-                for i in range(len(values[0])):
-                    substitutions = {
-                        component.symbol: values[keys.index(str(component.symbol))][i] 
-                        if str(component.symbol) in keys else component.value 
-                        for component in self.components
-                    }
-
-                    b_num_temp = [float(coeff.subs(substitutions)) for coeff in self.b]
-                    a_num_temp = [float(coeff.subs(substitutions)) for coeff in self.a]
-
-                    b_num.append(b_num_temp)
-                    a_num.append(a_num_temp)
-                
-                return np.array(b_num), np.array(a_num)
-            else:
-                raise ValueError("The 'combinations' argument must be either 'nested' or 'parallel'.")
-
+        return np.array(b_num).reshape(shape), np.array(a_num).reshape(shape)
 
 
     def getcoeffs(self, values = 'symb', z = None, Fs = None, combination = 'nested'):
