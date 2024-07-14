@@ -80,7 +80,7 @@ class VoltageSource(Component):
         self.circuit.b[n + self.index] = self.symbol
 
         # Stamp the unknown current accross the voltage source in the x 'state' vector
-        self.circuit.x[n + self.index] = sp.symbols(f'i{self.symbol}')
+        self.circuit.x[n + self.index] = sp.symbols(f'i_{self.symbol}')
 
 
 class ExternalVoltageSource(VoltageSource):
@@ -140,7 +140,7 @@ class Transformer(Component):
         self.circuit.A[n + self.index, self.start_node_2] = -self.symbol
         self.circuit.A[n + self.index,   self.end_node_2] = self.symbol
 
-        self.circuit.b[n + self.index] = sp.symbols(f'i{self.symbol}')
+        self.circuit.b[n + self.index] = sp.symbols(f'i_{self.symbol}')
 
 class Gyrator(Component):
     def __init__(self, start_node, end_node, start_node_2, end_node_2, symbol, value):
