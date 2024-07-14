@@ -237,7 +237,7 @@ class Circuit:
             H = sp.simplify(H)
 
 
-        transfer_function = CircuitSymbolicTransferFunction(H, self.components)
+        transfer_function = TransferFunction(H, self.components)
 
         if norm: transfer_function.normalized()
 
@@ -339,7 +339,7 @@ class Circuit:
 
 
 
-class CircuitSymbolicTransferFunction:
+class TransferFunction:
     '''
     This class is used when using the get_symbolic_transfert_function() method of the Circuit class,
     in order to extract the symbolic transfer function of a circuit object, between two nodes. 
