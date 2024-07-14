@@ -136,12 +136,10 @@ class Circuit:
 
 
     def stamp_system(self):
-
-        if not hasattr(self, 'A') or not hasattr(self, 'x') or not hasattr(self, 'b'):
-            #initialize the A magtrix, x and b vectors with zeros
-            self.A = sp.zeros(self.n + self.m, self.n + self.m)
-            self.x = sp.zeros(self.n + self.m, 1)
-            self.b = sp.zeros(self.n + self.m, 1)
+        #initialize the A matrix, x and b vectors with zeros
+        self.A = sp.zeros(self.n + self.m, self.n + self.m)
+        self.x = sp.zeros(self.n + self.m, 1)
+        self.b = sp.zeros(self.n + self.m, 1)
 
         for component in self.components:
             component.stamp()
