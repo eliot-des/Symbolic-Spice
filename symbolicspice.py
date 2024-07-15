@@ -496,18 +496,18 @@ class TransferFunction:
         if z is not None:
             if values == 'symb':
                 if isinstance(Fs, sp.Symbol):
-                    b, a = self.dig_coeffs(b, a, z, Fs)
+                    b, a = self.coeffz(b, a, z, Fs)
                 elif Fs is None:
-                    b, a = self.dig_coeffs(b, a, z)
+                    b, a = self.coeffz(b, a, z)
                 else:
                     raise ValueError("The sampling frequency must be a symbolic variable if values = 'symb'.")
             else:
                 if Fs == None:
                     raise ValueError("Samplerate was not given.")
-                b, a = self.dig_coeffs(b, a, z, Fs)
+                b, a = self.coeffz(b, a, z, Fs)
         return b, a
 
-    def gen_dig_coeffs(self, N, scheme='blnr'):
+    def gen_coeffz(self, N, scheme='blnr'):
         """
         Returns the symbolic discretized coefficients for a given order N & discretization scheme.
 
@@ -551,7 +551,7 @@ class TransferFunction:
 
 
 
-    def sub_dig_coeffs(self, b, a, scheme='blnr', srate=sp.Symbol('F_s')):
+    def sub_coeffz(self, b, a, scheme='blnr', srate=sp.Symbol('F_s')):
         """
         Returns the symbolic or real discretized coefficients for a given array of analog coefficients.
 
@@ -566,7 +566,7 @@ class TransferFunction:
         - Ad (np.array): Discretized denominator coefficients.
         """
         N = len(b)
-        B, A = self.gen_dig_coeffs(N - 1, scheme)
+        B, A = self.gen_coeffz(N - 1, scheme)
         subs_dict = {'T_s': 1. / srate}
 
         b, a = b[::-1], a[::-1]
@@ -586,7 +586,7 @@ class TransferFunction:
 
 
 
-    def dig_coeffs(self, b, a, scheme='blnr', srate=sp.Symbol('F_s')):
+    def coeffz(self, b, a, scheme='blnr', srate=sp.Symbol('F_s')):
         """
         Returns the symbolic or real discretized coefficients for a given array of analog coefficients.
 
@@ -615,7 +615,7 @@ class TransferFunction:
 
         for _ in it:
             idx = it.multi_index
-            Bd[idx], Ad[idx] = self.sub_dig_coeffs(b[idx], a[idx], scheme, srate)
+            Bd[idx], Ad[idx] = self.sub_coeffz(b[idx], a[idx], scheme, srate)
             
         return Bd, Ad
 
