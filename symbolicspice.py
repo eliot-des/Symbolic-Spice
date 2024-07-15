@@ -356,7 +356,7 @@ class TransferFunction:
         self.components = components
         self.b, self.a = None, None  #Symbolic analog filter coefficients
 
-    def symbolic_analog_coeffs(self):
+    def sym_coeffs(self):
         if self.b is None or self.a is None:
             num, denum = sp.fraction(self.sympyExpr)
             self.b = sp.Poly(num, sp.symbols('s')).all_coeffs()
@@ -370,7 +370,7 @@ class TransferFunction:
         num, den = sp.fraction(self.sympyExpr)
 
         if self.b is None or self.a is None:
-            self.b, self.a = self.symbolic_analog_coeffs()
+            self.b, self.a = self.sym_coeffs()
 
         a0 = self.a[0]
         self.a = [coeff/a0 for coeff in self.a]
@@ -378,7 +378,7 @@ class TransferFunction:
 
         self.sympyExpr = sp.Poly(self.b, sp.symbols('s')) / sp.Poly(self.a, sp.symbols('s'))
 
-    def numerical_analog_coeffs(self, component_values=None, combination='nested'):
+    def num_coeffs(self, component_values=None, combination='nested'):
         """
         Return the numerical coefficients `b_num` and `a_num` of the analog filter transfer function.
         The coefficients are calculated by substituting the component values in the symbolic transfer function.
@@ -418,7 +418,7 @@ class TransferFunction:
         """
 
         if self.b is None or self.a is None:
-            self.b, self.a = self.symbolic_analog_coeffs()
+            self.b, self.a = self.sym_coeffs()
         
         if component_values is None:
             component_values = {component.symbol: component.value for component in self.components}
@@ -482,10 +482,10 @@ class TransferFunction:
         # First, we derive the analog filter coefficients:
 
         if values == 'symb':
-            b, a = self.symbolic_analog_coeffs()
+            b, a = self.sym_coeffs()
         elif values == 'num' or isinstance(values, dict):
             component_values = None if values == 'num' else values
-            b, a = self.numerical_analog_coeffs(component_values=component_values, combination=combination)
+            b, a = self.num_coeffs(component_values=component_values, combination=combination)
         else:
             raise ValueError("The 'values' argument must be either 'symb', 'num', or a dictionary of component values.")
 
@@ -646,7 +646,7 @@ def plotTransfertFunction(f, h, legend=None, title=None, semilogx=True, dB=True,
     - h (array): frequency response array (complex) -> Max 3D array!
     - legend (dict or str): Legend of the different lines.
                             Use the same argument as component_values in the 
-                            numerical_analog_coeffs() method if 
+                            num_coeffs() method if 
                             you want a fast legend creation!
     - title (str): title of the plot
     - semilogx (bool): If True, use a logarithmic scale for the x-axis
