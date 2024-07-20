@@ -335,6 +335,10 @@ class Circuit:
         # return netlist as list of rows (each row is a component: [name, start node, end node, value])
         outlist = []
         for n in range(netlist.shape[0]):
+            # Clean non-numeric values such as R, C, etc
+            if np.char.isdigit(testlist[n,3][0]) == False:
+                netlist[n,3] = '0'
+                
             outlist.append(' '.join(str(item) for item in netlist[n,:]))
 
         return outlist
