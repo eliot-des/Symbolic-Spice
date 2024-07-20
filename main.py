@@ -56,7 +56,7 @@ circuit = Circuit(inputList)
 #circuit = Circuit(r'FMV Tone Stack.net')
 #circuit.display_components()
 circuit.stamp_system()
-circuit.print_system()
+circuit.show()
 '''
 
 # Solve the system :

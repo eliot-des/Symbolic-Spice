@@ -161,7 +161,7 @@ class Circuit:
         print('\n\nb vector:\n')
         sp.pprint(self.b)
 
-    def solve_system(self, simplify = False, use_symengine = False):
+    def __solve(self, simplify = False, use_symengine = False):
         """
         Solve the linear system of equations Ax = b
 
@@ -213,7 +213,7 @@ class Circuit:
         """
         # Ensure the system is solved:
         if not hasattr(self, 'x_solution'):
-            self.solve_system()
+            self.__solve()
 
         # Function to retrieve node symbol:
         def get_Voltage_Expr(node):
