@@ -311,9 +311,11 @@ class Circuit:
 
         # Make sure there is a voltage source from in to ground called Vin
         if np.any(netlist[:, 0] == 'Vin'):
+            # Make sure it's value is 1
+            node = np.argwhere(netlist[:,0] == 'Vin')[0]
+            netlist[node, 3] = '1'
             # Set input to the first node
             netlist[:,1:3] = np.char.replace(netlist[:,1:3], '1', 'temp')
-            node = np.argwhere(netlist[:,0] == 'Vin')[0]
             netlist[:,1:3] = np.char.replace(netlist[:,1:3], netlist[node,1], '1')
             netlist[:,1:3] = np.char.replace(netlist[:,1:3], 'temp', netlist[node,1])
             # Set Vin at the first row
