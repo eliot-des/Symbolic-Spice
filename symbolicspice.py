@@ -37,7 +37,7 @@ class Circuit:
         self.idealOPAs          = self.__get_components_of_type(self.components, IdealOPA)
 
         self.m = len(self.voltageSources) + len(self.idealOPAs)
-        self.n = self.get_nodes_nbr()   # Number of nodes including the ground node
+        self.n = self.__get_nodes()   # Number of nodes including the ground node
 
         for component in self.components:
             component.circuit = self
@@ -121,7 +121,7 @@ class Circuit:
         components_list = [component for component in components if isinstance(component, component_type)]
         return components_list
     
-    def get_nodes_nbr(self):
+    def __get_nodes(self):
         """
         Returns the total number of unique nodes from the list of components. 
         The ground node is included 
