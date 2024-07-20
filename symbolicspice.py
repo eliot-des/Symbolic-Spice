@@ -153,7 +153,7 @@ class Circuit:
         self.b = self.b[1:, :]
         self.x = self.x[1:, :]
 
-    def print_system(self):
+    def show(self):
         print('\n\nA matrix:\n')
         sp.pprint(self.A)
         print('\n\nx vector:\n')
