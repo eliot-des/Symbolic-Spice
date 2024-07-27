@@ -75,7 +75,7 @@ H = circuit.tf(output_node = 5, input_node=1, norm=True)
 
 sp.pprint(H.sympyExpr)
 
-b, a = H.getcoeffs()
+b, a = H.coeffs()
 
 
 print(f'\nb coefficients :{b}')
@@ -104,8 +104,8 @@ plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, p
 #, 'R2': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3])
 #2D Case
 component_values = {'R4': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3]), 'R5': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3])}
-b_num, a_num =  H.getcoeffs(component_values, z=None, combination='parallel')
-b_num_dig, a_num_dig =  H.getcoeffs(values=component_values, z='bckwrd', Fs= Fs, combination='parallel')
+b_num, a_num =  H.coeffs(component_values, z=None, combination='parallel')
+b_num_dig, a_num_dig =  H.coeffs(values=component_values, z='bckwrd', Fs= Fs, combination='parallel')
 
 
 h_analog = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(a_num))])

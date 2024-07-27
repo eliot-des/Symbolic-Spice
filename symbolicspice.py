@@ -461,7 +461,7 @@ class TransferFunction:
         return np.array(b_num).reshape(shape), np.array(a_num).reshape(shape)
 
 
-    def getcoeffs(self, values = 'symb', z = None, Fs = None, combination = 'nested'):
+    def coeffs(self, values = 'symb', z = None, Fs = None, combination = 'nested'):
         """
         Return b & a coefficients of the transfer function.
 
