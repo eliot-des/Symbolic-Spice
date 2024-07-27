@@ -71,7 +71,7 @@ sp.pprint(sp.Eq(circuit.x, circuit.x_solution))
 
 # Get the symbolic transfer function between the output node and the input node
 # DONT FORGET TO CHANGE THE OUTPUT AND INPUT NODES ACCORDING TO YOUR NETLIST !
-H = circuit.tf(output_node = 5, input_node=1, norm=True)
+H = circuit.tf(output_node = 5, input_node=1)
 
 sp.pprint(H.sympyExpr)
 

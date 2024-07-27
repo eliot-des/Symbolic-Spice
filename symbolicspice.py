@@ -201,9 +201,9 @@ class Circuit:
             self.x_solution = sp.simplify(self.x_solution)
 
 
-    def tf(self, output_node, input_node=1, norm = True):
+    def tf(self, output_node, input_node=1):
         """
-        Returns the b & a coefficients of the symbolic transfer function object of the netlist.
+        Returns transfer function object of the netlist.
 
         Parameters
         ----------
@@ -236,10 +236,7 @@ class Circuit:
         else:
             H = sp.simplify(H)
 
-
         transfer_function = TransferFunction(H, self.components)
-
-        if norm: transfer_function.normalized()
 
         return transfer_function
 
@@ -362,14 +359,27 @@ class TransferFunction:
         self.components = components
         self.b, self.a = None, None  #Symbolic analog filter coefficients
 
-    def sym_coeffs(self):
+    def sym_coeffs(self, norm=False):
+        '''
+        Returns the transfer function's symbolic coefficients.
+        
+        Parameters
+        ----------
+        norm : {True, False}, optional
+            Normalize the coefficients w.r.t a[0].
+        '''
         if self.b is None or self.a is None:
             num, denum = sp.fraction(self.sympyExpr)
             self.b = sp.Poly(num, sp.symbols('s')).all_coeffs()
             self.a = sp.Poly(denum, sp.symbols('s')).all_coeffs()
+            
+        # Normalize coeffs
+        if norm == True:
+            self.__normalized()
+            
         return self.b, self.a
 
-    def normalized(self):
+    def __normalized(self):
         '''
         Normalize the transfer function to have self.a[0] = 1.
         '''
