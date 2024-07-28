@@ -358,6 +358,7 @@ class TransferFunction:
         self.sympyExpr = H
         self.components = components
         self.b, self.a = None, None  #Symbolic analog filter coefficients
+        self.Nb, self.Na = None, None # Length of coefficients
 
     def sym_coeffs(self, norm=False):
         '''
@@ -376,6 +377,10 @@ class TransferFunction:
         # Normalize coeffs
         if norm == True:
             self.__normalized()
+        
+        # Update coeffs size
+        self.Nb = len(self.b)
+        self.Na = len(self.a)
             
         return self.b, self.a
 
@@ -383,10 +388,6 @@ class TransferFunction:
         '''
         Normalize the transfer function to have self.a[0] = 1.
         '''
-        num, den = sp.fraction(self.sympyExpr)
-
-        if self.b is None or self.a is None:
-            self.b, self.a = self.sym_coeffs()
 
         a0 = self.a[0]
         self.a = [coeff/a0 for coeff in self.a]
@@ -523,21 +524,20 @@ class TransferFunction:
                 b, a = self.coeffz(b, a, z, Fs)
         return b, a
 
-    def gen_coeffz(self, N, scheme='blnr'):
+    def sym_coeffz(self, scheme='blnr', norm=False, simple=False):
         """
         Returns the symbolic discretized coefficients for a given order N & discretization scheme.
 
         Parameters:
-        - N (int): Order of transfer function.
         - scheme (str): Desired discretization scheme ('frwrd', 'bckwrd', 'blnr').
+        - norm (bool): Returns normalized coefficients w.r.t a[0]
+        - simple (bool): Returns generalize coefficients
 
         Returns:
         - Bd (np.array): Discretized numerator coefficients.
         - Ad (np.array): Discretized denominator coefficients.
         """
         s, z, Ts = sp.symbols('s z T_s')
-        b = sp.symbols(f'a_0:{N + 1}')[::-1]
-        a = sp.symbols(f'b_0:{N + 1}')[::-1]
 
         #create a dictionary of the different discretization schemes
         #therefore, additonal schemes can be added easily
@@ -549,19 +549,28 @@ class TransferFunction:
 
         if scheme not in schemes:
             raise ValueError("Invalid scheme given")
+        
+        # Make sure coeffs exist
+        b, a = self.sym_coeffs()
+        
+        if simple == True:
+            # Generalize analog coeffs
+            b = sp.symbols(f'b_0:{self.Nb}')[::-1]
+            a = sp.symbols(f'a_0:{self.Na}')[::-1]
 
+        
         ds = schemes[scheme]
-        B = sp.Poly(a, s).as_expr().subs(s, ds) * (z + 1)**N
-        A = sp.Poly(b, s).as_expr().subs(s, ds) * (z + 1)**N
+        B = sp.Poly(a, s).as_expr().subs(s, ds) * (z + 1)**(self.Nb - 1)
+        A = sp.Poly(b, s).as_expr().subs(s, ds) * (z + 1)**(self.Na - 1)
 
         H = sp.simplify(B / A)
         B, A = sp.fraction(H)
 
-        B = sp.collect(sp.expand(B / z**N), 1 / z)
-        A = sp.collect(sp.expand(A / z**N), 1 / z)
+        B = sp.collect(sp.expand(B / z**(self.Nb - 1) ), 1 / z)
+        A = sp.collect(sp.expand(A / z**(self.Na - 1) ), 1 / z)
 
-        Bd = [B.coeff(z, -n) for n in range(N + 1)]
-        Ad = [A.coeff(z, -n) for n in range(N + 1)]
+        Bd = [B.coeff(z, -n) for n in range(self.Nb)]
+        Ad = [A.coeff(z, -n) for n in range(self.Na)]
 
         return Bd, Ad
 
