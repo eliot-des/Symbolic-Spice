@@ -9,7 +9,7 @@ Created on Thur Jul 04 17:27:53 2024
 from scipy.signal import freqs, freqz
 import numpy as np
 import sympy as sp
-import symbspice as symspi
+from symbspice import Circuit
 import matplotlib.pyplot as plt
 
 #declaration of the circuit
@@ -52,7 +52,7 @@ inputList   =  ['Vin 1 0 1',
                 'R3 4 0 8',]       
 '''
 #declare a circuit object
-circuit = symspi.Circuit(inputList)
+circuit = Circuit(inputList)
 #circuit = symspi.Circuit(r'FMV Tone Stack.net')
 #circuit.display_components()
 circuit.stamp_system()
