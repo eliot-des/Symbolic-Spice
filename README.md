@@ -9,7 +9,7 @@ Symbolic-spice relies on the Modified Nodal Analysis, introduced by [Chen-When H
 
 ## How to use Symbolic-Spice with LT Spice
 1. Create a linear schematic in LT-Spice.
-2. Set a voltage source named 'Vin'.
+2. Set a voltage source named either 'Vin' or ‘V1’ (if both exist, Vin will be set as input).
     a. The positive side of the source needs to be connected in the desired input node.
     b. The AC stimulus of the source needs to be set to 1.
 3. (Optional) Set a net label titled 'out' for setting the output as the last node.
