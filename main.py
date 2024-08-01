@@ -9,7 +9,7 @@ Created on Thur Jul 04 17:27:53 2024
 from scipy.signal import freqs, freqz
 import numpy as np
 import sympy as sp
-from symbolicspice import Circuit, plotTransfertFunction
+import symbspice as symspi
 import matplotlib.pyplot as plt
 
 #declaration of the circuit
@@ -52,8 +52,8 @@ inputList   =  ['Vin 1 0 1',
                 'R3 4 0 8',]       
 '''
 #declare a circuit object
-circuit = Circuit(inputList)
-#circuit = Circuit(r'FMV Tone Stack.net')
+circuit = symspi.Circuit(inputList)
+#circuit = symspi.Circuit(r'FMV Tone Stack.net')
 #circuit.display_components()
 circuit.stamp_system()
 circuit.show()
@@ -112,9 +112,9 @@ h_analog = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(a_n
 h_discrete = np.array([freqz(b_num_dig[i], a_num_dig[i], worN=f, fs=Fs)[1] for i in range(len(a_num_dig))])
 
 
-plotTransfertFunction(f, h_analog, legend = component_values, semilogx=True, dB=True, phase=True)
+#plotTransfertFunction(f, h_analog, legend = component_values, semilogx=True, dB=True, phase=True)
 
-plotTransfertFunction(f, h_discrete, legend = component_values, semilogx=True, dB=True, phase=True)
+#plotTransfertFunction(f, h_discrete, legend = component_values, semilogx=True, dB=True, phase=True)
 
 fig, ax = plt.subplots(2, 1, figsize=(10, 10))
 
