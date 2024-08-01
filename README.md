@@ -16,7 +16,7 @@ Symbolic-spice relies on the Modified Nodal Analysis, introduced by [Chen-When H
 
 ## To do:
 - [x] Add parser for LT Spice .net files.
-	- [ ] Add support fot V1 as default input.
+	- [x] Add support fot V1 as default input.
     - [ ] Add support for parameters.
     - [ ] Test parser with all the components.
 		- [x] Voltage source.

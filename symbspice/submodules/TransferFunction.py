@@ -96,7 +96,7 @@ class TransferFunction:
         """
 
         if self.b is None or self.a is None:
-            self.b, self.a = self.sym_coeffs()
+            self.b, self.a = self.sym_coeffs(norm=True)
         
         if component_values is None:
             component_values = {component.symbol: component.value for component in self.components}

@@ -305,22 +305,25 @@ class Circuit:
 
         # Make sure there is a voltage source from in to ground called Vin
         if np.any(netlist[:, 0] == 'Vin'):
-            # Make sure it's value is 1
             node = np.argwhere(netlist[:,0] == 'Vin')[0]
-            netlist[node, 3] = '1'
-            # Set input to the first node
-            netlist[:,1:3] = np.char.replace(netlist[:,1:3], '1', 'temp')
-            netlist[:,1:3] = np.char.replace(netlist[:,1:3], netlist[node,1], '1')
-            netlist[:,1:3] = np.char.replace(netlist[:,1:3], 'temp', netlist[node,1])
-            # Set Vin at the first row
-            temp = netlist[0,:].copy()
-            netlist[0,:] = netlist[node].flatten()
-            netlist[int(node), :] = temp
-            # Sort elements by node 1
-            netlist = netlist[netlist[:, 1].argsort()]
+        elif np.any(netlist[:, 0] == 'V1'):
+            node = np.argwhere(netlist[:,0] == 'V1')[0]
         else:
             raise Exception("Netlist is missing Vin, add a voltage source named Vin where the input is wanted")
-
+        
+        # Make sure it's value is 1
+        netlist[node, 3] = '1'
+        # Set input to the first node
+        netlist[:,1:3] = np.char.replace(netlist[:,1:3], '1', 'temp')
+        netlist[:,1:3] = np.char.replace(netlist[:,1:3], netlist[node,1], '1')
+        netlist[:,1:3] = np.char.replace(netlist[:,1:3], 'temp', netlist[node,1])
+        # Set Vin at the first row
+        temp = netlist[0,:].copy()
+        netlist[0,:] = netlist[node].flatten()
+        netlist[int(node), :] = temp
+        # Sort elements by node 1
+        netlist = netlist[netlist[:, 1].argsort()]
+    
         # If there is a net label for the output set it as the last node
         if np.any(netlist[:, 1:3] == 'out'):
             # Replace out to max node
