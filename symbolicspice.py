@@ -487,9 +487,11 @@ class TransferFunction:
             * If None, the function will return the analog filter coefficients.
         - Fs : float, optional
             The sampling frequency.
+        - norm (bool): Returns normalized coefficients w.r.t a[0]
         - combination : {'nested', 'parallel'}, optional
             * If the `component_values` dictionary has multiple keys, the 'combinations' argument specifies how to combine the values.
             * If the `component_values` dictionary has only one key, the 'combinations' argument is ignored
+        - simple (bool): Analog coefficients are expressed implicitly, returns generic discretized coefficients.
         Returns
         -------
         b, a : np.array
@@ -520,8 +522,8 @@ class TransferFunction:
 
         Parameters:
         - scheme (str): Desired discretization scheme ('frwrd', 'bckwrd', 'blnr').
-        - norm (bool): Returns normalized coefficients w.r.t a[0]
-        - simple (bool): Returns generalize coefficients
+        - norm (bool): Returns normalized coefficients w.r.t a[0].
+        - simple (bool): Analog coefficients are expressed implicitly, returns generic discretized coefficients.
 
         Returns:
         - Bd (np.array): Discretized numerator coefficients.
@@ -588,7 +590,7 @@ class TransferFunction:
 
         Parameters:
         - scheme (str): Discretization scheme ('frwrd', 'bckwrd', 'blnr').
-        - srate (float): Samplerate.
+        - Fs (float): Samplerate.
 
         Returns:
         - Bd (np.array): Discretized numerator coefficients.
@@ -628,9 +630,13 @@ class TransferFunction:
         Returns the symbolic or real discretized coefficients for a given array of analog coefficients.
 
         Parameters:
-        - 
+        - values : 'symb', or 'num'.
+            * If  'sym', return the symbolic coefficients.
+            * If  'num', return the numerical coefficients for the default values of the components set in the Circuit object.
         - scheme (str): Discretization scheme ('frwrd', 'bckwrd', 'blnr').
-        - srate (float or sympy.Symbol): Samplerate.
+        - Fs (float or sympy.Symbol): Samplerate.
+        - norm (bool): Returns normalized coefficients w.r.t a[0].
+        - simple (bool): Analog coefficients are expressed implicitly, returns generic discretized coefficients.
 
         Returns:
         - Bd (np.array): Discretized numerator coefficients.
