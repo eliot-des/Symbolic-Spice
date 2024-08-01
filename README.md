@@ -15,6 +15,7 @@ Symbolic-spice relies on the Modified Nodal Analysis, introduced by [Chen-When H
 3. (Optional) Set a net label titled 'out' for setting the output as the last node.
 
 ## To do:
+- [ ] Add test folder to automatically verify if update causes issues.
 - [x] Add parser for LT Spice .net files.
 	- [x] Add support fot V1 as default input.
     - [ ] Add support for parameters.
