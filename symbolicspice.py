@@ -472,7 +472,7 @@ class TransferFunction:
         return np.array(b_num).reshape(shape), np.array(a_num).reshape(shape)
 
 
-    def coeffs(self, values = 'symb', z = None, Fs = None, combination = 'nested'):
+    def coeffs(self, values = 'symb', scheme = None, Fs = None, norm = False, combination = 'nested', simple=False):
         """
         Return b & a coefficients of the transfer function.
 
@@ -482,7 +482,7 @@ class TransferFunction:
             * If  'sym', return the symbolic coefficients.
             * If  'num', return the numerical coefficients for the default values of the components set in the Circuit object.
             * If a dictionary is provided, return the numerical coefficients for the given values.
-        - z : {'frwrd', 'bckwrd', 'blnr'}, or None, optional
+        - scheme : {'frwrd', 'bckwrd', 'blnr'}, or None, optional
             The desired discretization scheme.
             * If None, the function will return the analog filter coefficients.
         - Fs : float, optional
@@ -510,18 +510,8 @@ class TransferFunction:
         # Then we use the eval() function to derive the digital filter coefficients (if the user want) 
         # corresponding to the analog filter coefficients, either they are symbolic or numerical.
 
-        if z is not None:
-            if values == 'symb':
-                if isinstance(Fs, sp.Symbol):
-                    b, a = self.coeffz(b, a, z, Fs)
-                elif Fs is None:
-                    b, a = self.coeffz(b, a, z)
-                else:
-                    raise ValueError("The sampling frequency must be a symbolic variable if values = 'symb'.")
-            else:
-                if Fs == None:
-                    raise ValueError("Samplerate was not given.")
-                b, a = self.coeffz(b, a, z, Fs)
+        if scheme is not None:
+            b, a = self.coeffz(scheme=scheme, Fs=Fs, norm=norm, simple=simple)
         return b, a
 
     def sym_coeffz(self, scheme='blnr', norm=False, simple=False):
@@ -606,6 +596,9 @@ class TransferFunction:
         """
         
         B, A = self.sym_coeffz(scheme, simple=True)
+        
+        if Fs == None:
+            raise ValueError('Fs was not given.')
         subs_dict = {'T_s': 1. / Fs}
 
         b, a = self.num_coeffs()
@@ -630,13 +623,12 @@ class TransferFunction:
 
 
 
-    def coeffz(self, b, a, scheme='blnr', srate=sp.Symbol('F_s')):
+    def coeffz(self, values='sym', scheme='blnr', Fs=None, norm=False, simple=False):
         """
         Returns the symbolic or real discretized coefficients for a given array of analog coefficients.
 
         Parameters:
-        - b (list/array): Continuous b coefficients.
-        - a (list/array): Continuous a coefficients.
+        - 
         - scheme (str): Discretization scheme ('frwrd', 'bckwrd', 'blnr').
         - srate (float or sympy.Symbol): Samplerate.
 
@@ -644,22 +636,12 @@ class TransferFunction:
         - Bd (np.array): Discretized numerator coefficients.
         - Ad (np.array): Discretized denominator coefficients.
         """
-        b = np.asarray(b)
-        a = np.asarray(a)
-
-
-        if b.shape != a.shape:
-            raise ValueError("Shapes of b and a must be the same.")
-
-        Bd = np.empty_like(b)
-        Ad = np.empty_like(a)
-
-        #we must iter on b and a by keeping b and a as array, because this a list of coefficient associated to a given filter.
-        it = np.nditer(b[..., 0], flags=['multi_index'])
-
-        for _ in it:
-            idx = it.multi_index
-            Bd[idx], Ad[idx] = self.sub_coeffz(b[idx], a[idx], scheme, srate)
+        if values == 'sym':
+            Bd, Ad = self.sym_coeffz(scheme=scheme, norm=norm, simple=simple)
+        elif values == 'num':
+            Bd, Ad = self.num_coeffz(scheme=scheme, Fs=Fs)
+        else:
+            raise ValueError('values has to be set to sym or num')
             
         return Bd, Ad
 
