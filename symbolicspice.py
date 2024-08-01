@@ -557,57 +557,76 @@ class TransferFunction:
             # Generalize analog coeffs
             b = sp.symbols(f'b_0:{self.Nb}')[::-1]
             a = sp.symbols(f'a_0:{self.Na}')[::-1]
-
         
+        # Set discretization scheme
         ds = schemes[scheme]
-        B = sp.Poly(a, s).as_expr().subs(s, ds) * (z + 1)**(self.Nb - 1)
-        A = sp.Poly(b, s).as_expr().subs(s, ds) * (z + 1)**(self.Na - 1)
+        
+        # Create variables
+        B = sp.Poly(b, s)
+        A = sp.Poly(a, s)
 
-        H = sp.simplify(B / A)
-        B, A = sp.fraction(H)
+        # Replace s for chosen method
+        B = B.as_expr().subs(s, ds) * (z + 1)**(self.Nb - 1)
+        A = A.as_expr().subs(s, ds) * (z + 1)**(self.Na - 1)
 
+        # Simplify
+        H = B / A
+        B, A = sp.fraction(H.simplify())
+
+        # Group terms
         B = sp.collect(sp.expand(B / z**(self.Nb - 1) ), 1 / z)
         A = sp.collect(sp.expand(A / z**(self.Na - 1) ), 1 / z)
 
-        Bd = [B.coeff(z, -n) for n in range(self.Nb)]
-        Ad = [A.coeff(z, -n) for n in range(self.Na)]
+        # Store coefficients in order in a list
+        Bd = np.zeros(self.Nb, dtype=object)
+        Ad = np.zeros(self.Na, dtype=object)
+        
+        # Extract coeffs
+        for n in range(self.Nb):
+            Bd[n] = B.coeff(z, -n)
+            
+        for n in range(self.Na):
+            Ad[n] = A.coeff(z, -n)
 
         return Bd, Ad
 
 
 
-    def sub_coeffz(self, b, a, scheme='blnr', srate=sp.Symbol('F_s')):
+    def num_coeffz(self, scheme='blnr', Fs=None):
         """
         Returns the symbolic or real discretized coefficients for a given array of analog coefficients.
 
         Parameters:
-        - b (list/array): Continuous b coefficients.
-        - a (list/array): Continuous a coefficients.
         - scheme (str): Discretization scheme ('frwrd', 'bckwrd', 'blnr').
-        - srate (float or sympy.Symbol): Samplerate.
+        - srate (float): Samplerate.
 
         Returns:
         - Bd (np.array): Discretized numerator coefficients.
         - Ad (np.array): Discretized denominator coefficients.
         """
-        N = len(b)
-        B, A = self.gen_coeffz(N - 1, scheme)
-        subs_dict = {'T_s': 1. / srate}
+        
+        B, A = self.sym_coeffz(scheme, simple=True)
+        subs_dict = {'T_s': 1. / Fs}
 
-        b, a = b[::-1], a[::-1]
-        for n in range(N):
+        b, a = self.num_coeffs()
+        
+        # Reverse coeffs
+        b = b[::-1]
+        a = a[::-1]
+        
+        for n in range(self.Nb):
             subs_dict[f'b_{n}'] = b[n]
+        
+        for n in range(self.Na):
             subs_dict[f'a_{n}'] = a[n]
 
-        if all(isinstance(coeff, (int, float)) for coeff in b + a):
-            out_type=np.float64
-        else:
-            out_type = object
+        Bd = np.array([B[n].subs(subs_dict) for n in range(self.Nb)])
+        Ad = np.array([A[n].subs(subs_dict) for n in range(self.Na)])
+        
+        Bd = Bd / Ad[0]
+        Ad = Ad / Ad[0]
 
-        Bd = np.array([B[n].subs(subs_dict) for n in range(N)], dtype=out_type)
-        Ad = np.array([A[n].subs(subs_dict) for n in range(N)], dtype=out_type)
-
-        return Bd, Ad
+        return Bd.astype(np.float64), Ad.astype(np.float64)
 
 
 
