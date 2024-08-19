@@ -130,7 +130,7 @@ class Circuit:
 
 
 
-    def stamp_system(self):
+    def stamp_MNA_system(self):
         #initialize the A matrix, x and b vectors with zeros
         self.A = sp.zeros(self.n + self.m, self.n + self.m)
         self.x = sp.zeros(self.n + self.m, 1)
@@ -172,7 +172,7 @@ class Circuit:
         - None
         """
         if not hasattr(self, 'A') or not hasattr(self, 'b') or not hasattr(self, 'x'):
-            self.stamp_system()
+            self.stamp_MNA_system()
 
 
         if use_symengine:
