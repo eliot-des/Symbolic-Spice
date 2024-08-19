@@ -24,7 +24,7 @@ class Component:
     def setup(self, circuit):
         self.circuit = circuit
 
-    def stamp_MNA():
+    def stamp_MNA(self):
         raise NotImplementedError("This method should be implemented by subclasses.")
 
 
@@ -33,7 +33,7 @@ class AdmittanceComponent(Component):
         super().__init__(start_node, end_node, symbol, value)
         self.admittance = None # This is set in subclasses
 
-    def stamp_MNA():
+    def stamp_MNA(self):
         #method to stamp the admittance of the components in the A matrix of the circuit class
         self.circuit.A[self.start_node, self.start_node] += self.admittance
         self.circuit.A[self.end_node,     self.end_node] += self.admittance    
@@ -68,7 +68,7 @@ class VoltageSource(Component):
         super().__init__(start_node, end_node, symbol, value)
         self.index = index
 
-    def stamp_MNA():
+    def stamp_MNA(self):
         n = self.circuit.n
         
         self.circuit.A[n + self.index, self.start_node] =  1
@@ -100,7 +100,7 @@ class CurrentSource(Component):
     def __init__(self, start_node, end_node, symbol, value):
         super().__init__(start_node, end_node, symbol, value)
 
-    def stamp_MNA():
+    def stamp_MNA(self):
         self.circuit.b[self.start_node] -= self.symbol
         self.circuit.b[self.end_node  ] += self.symbol
 
@@ -113,7 +113,7 @@ class IdealOPA(Component):
         self.output_node = int(output_node)
         self.index = index
 
-    def stamp_MNA():
+    def stamp_MNA(self):
         n = self.circuit.n 
         
         self.circuit.A[self.output_node, n + self.index] =  1
@@ -127,7 +127,7 @@ class Transformer(Component):
         self.end_node_2 = end_node_2
         #here, the value of the transformer is the wires ratio
 
-    def stamp_MNA():
+    def stamp_MNA(self):
         n = self.circuit.n
 
         self.circuit.A[self.start_node,   n + self.index] =  1
@@ -149,7 +149,7 @@ class Gyrator(Component):
         self.end_node_2 = end_node_2
         #here, the value of the gyrator is the transconductance
 
-    def stamp_MNA():
+    def stamp_MNA(self):
         n = self.circuit.n
 
         self.circuit.A[self.start_node, self.start_node_2] = self.symbol
