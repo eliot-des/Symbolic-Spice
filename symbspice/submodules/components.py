@@ -40,6 +40,15 @@ class AdmittanceComponent(Component):
         # Off-diagonal elements
         self.circuit.A[self.start_node,   self.end_node] -= self.admittance
         self.circuit.A[self.end_node,   self.start_node] -= self.admittance
+    
+    def stamp_MNA_ss(self, A, x, b):
+        #method to stamp the admittance of the components in a MNA system 
+        #that will be used to derive the state-space representation
+        A[self.start_node, self.start_node] += self.admittance
+        A[self.end_node,     self.end_node] += self.admittance
+        A[self.start_node,   self.end_node] -= self.admittance
+        A[self.end_node,   self.start_node] -= self.admittance
+        
 
 class Resistance(AdmittanceComponent):     
     def __init__(self, start_node, end_node, symbol, value):
@@ -53,6 +62,30 @@ class Capacitor(AdmittanceComponent):
         super().__init__(start_node, end_node, symbol, value)
         s, C = sp.symbols('s'), self.symbol
         self.admittance = s * C
+
+        #only needed for the state-space representation
+        self.voltage = sp.symbols(f'v_{self.symbol}')
+        self.current = sp.symbols(f'i_{self.symbol}')
+
+    def index_ss(self, index):
+        self.index_ss = index
+        
+    def stamp_MNA_ss(self, A, x, b):
+        #method to stamp the capacitor in a MNA system used to derive the state-space representation
+        #Here the capacitor is represented as a pure voltage source
+
+        n = self.circuit.n
+        
+        A[n + self.index_ss, self.start_node] =  1
+        A[n + self.index_ss,   self.end_node] = -1
+        A[self.start_node, n + self.index_ss] =  1
+        A[self.end_node,   n + self.index_ss] = -1
+
+        # Stamp the b vector for this voltage source
+        b[n + self.index_ss] = self.voltage
+
+        # Stamp the unknown current accross the voltage source in the x 'state' vector
+        x[n + self.index_ss] = self.current
     
 
 class Inductance(AdmittanceComponent):
@@ -62,11 +95,28 @@ class Inductance(AdmittanceComponent):
         self.admittance = 1 / (s * L)
 
 
+        #only needed for the state-space representation
+        self.current = sp.symbols(f'i_{self.symbol}')
+
+    def stamp_MNA_ss(self, A, x, b):
+        #method to stamp the inductor in a MNA system used to derive the state-space representation
+        #Here the inductor is represented as a pure current source
+        n = self.circuit.n
+        
+        b[self.start_node] -= self.current
+        b[self.end_node  ] += self.current
+        
+
+
+
 
 class VoltageSource(Component):
     def __init__(self, start_node, end_node, symbol, value, index):
         super().__init__(start_node, end_node, symbol, value)
         self.index = index
+        
+        self.voltage = self.symbol
+        self.current = sp.symbols(f'i_{self.symbol}')
 
     def stamp_MNA(self):
         n = self.circuit.n
@@ -77,10 +127,27 @@ class VoltageSource(Component):
         self.circuit.A[self.end_node,   n + self.index] = -1
 
         # Stamp the b vector for this voltage source
-        self.circuit.b[n + self.index] = self.symbol
+        self.circuit.b[n + self.index] = self.voltage
 
         # Stamp the unknown current accross the voltage source in the x 'state' vector
-        self.circuit.x[n + self.index] = sp.symbols(f'i_{self.symbol}')
+        self.circuit.x[n + self.index] = self.current
+    
+    def index_ss(self, index):
+        self.index_ss = index
+
+    def stamp_MNA_ss(self, A, x, b):
+        n = self.circuit.n
+        
+        A[n + self.index_ss, self.start_node] =  1
+        A[n + self.index_ss,   self.end_node] = -1
+        A[self.start_node, n + self.index_ss] =  1
+        A[self.end_node,   n + self.index_ss] = -1
+
+        # Stamp the b vector for this voltage source
+        b[n + self.index_ss] = self.symbol
+
+        # Stamp the unknown current accross the voltage source in the x 'state' vector
+        x[n + self.index_ss] = self.current
 
 
 class ExternalVoltageSource(VoltageSource):
@@ -99,10 +166,15 @@ class VoltageProbe(Component):
 class CurrentSource(Component):
     def __init__(self, start_node, end_node, symbol, value):
         super().__init__(start_node, end_node, symbol, value)
+        self.current = self.symbol
 
     def stamp_MNA(self):
-        self.circuit.b[self.start_node] -= self.symbol
-        self.circuit.b[self.end_node  ] += self.symbol
+        self.circuit.b[self.start_node] -= self.current
+        self.circuit.b[self.end_node  ] += self.current
+    
+    def stamp_MNA_ss(self, A, x, b):
+        b[self.start_node] -= self.current
+        b[self.end_node  ] += self.current
 
 class IdealOPA(Component):
     def __init__(self, start_node, end_node, output_node, symbol, index):
