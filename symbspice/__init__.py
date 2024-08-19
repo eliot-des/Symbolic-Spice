@@ -137,7 +137,7 @@ class Circuit:
         self.b = sp.zeros(self.n + self.m, 1)
 
         for component in self.components:
-            component.stamp()
+            component.stamp_MNA()
 
         #set the symbolic value at each voltage node in the x 'state' vector:
         for i in range(self.n):
