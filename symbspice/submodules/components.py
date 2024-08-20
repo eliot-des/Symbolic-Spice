@@ -180,6 +180,7 @@ class ExternalVoltageSource(VoltageSource):
         nV = self.circuit.nV
 
         SIV0[n, nI+nV] = 1
+        nV+=1
 
 class VoltageProbe(Component):
 
@@ -214,6 +215,8 @@ class ExternalCurrentSource(CurrentSource):
 
         SIV0[self.start_node, nI+nV] = -1
         SIV0[self.end_node, nI+nV] = 1
+
+        nI+=1
 
 class IdealOPA(Component):
     def __init__(self, start_node, end_node, output_node, symbol, index):
