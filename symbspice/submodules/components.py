@@ -41,7 +41,7 @@ class AdmittanceComponent(Component):
         self.circuit.A[self.start_node,   self.end_node] -= self.admittance
         self.circuit.A[self.end_node,   self.start_node] -= self.admittance
     
-    def stamp_MNA_ss(self, A, x, b, DLC, SLC):
+    def stamp_MNA_ss(self, A, x, b, DLC, SLC, SIV0):
         #method to stamp the admittance of the components in a MNA system 
         #that will be used to derive the state-space representation
         A[self.start_node, self.start_node] += self.admittance
@@ -70,7 +70,7 @@ class Capacitor(AdmittanceComponent):
     def index_ss(self, index):
         self.index_ss = index
         
-    def stamp_MNA_ss(self, A, x, b, DLC, SLC):
+    def stamp_MNA_ss(self, A, x, b, DLC, SLC, SIV0):
         #method to stamp the capacitor in a MNA system used to derive the state-space representation
         #Here the capacitor is represented as a pure voltage source
 
@@ -106,7 +106,7 @@ class Inductance(AdmittanceComponent):
         self.voltage = sp.symbols(f'v_{self.symbol}')
         self.current = sp.symbols(f'i_{self.symbol}')
 
-    def stamp_MNA_ss(self, A, x, b, DLC, SLC):
+    def stamp_MNA_ss(self, A, x, b, DLC, SLC, SIV0):
         #method to stamp the inductor in a MNA system used to derive the state-space representation
         #Here the inductor is represented as a pure current source
         n = self.circuit.n
@@ -153,7 +153,7 @@ class VoltageSource(Component):
     def index_ss(self, index):
         self.index_ss = index
 
-    def stamp_MNA_ss(self, A, x, b, DLC, SLC):
+    def stamp_MNA_ss(self, A, x, b, DLC, SLC, SIV0):
         n = self.circuit.n
         
         A[n + self.index_ss, self.start_node] =  1
@@ -170,8 +170,16 @@ class VoltageSource(Component):
 
 class ExternalVoltageSource(VoltageSource):
     def __init__(self, start_node, end_node, symbol, value, index):
-        
         super().__init__(start_node, end_node, symbol, value, index)
+
+    def stamp_MNA_ss(self, A, x, b, DLC, SLC, SIV0):
+        #call the stamp_MNA_ss method of the parent class
+        super().stamp_MNA_ss(A, x, b, DLC, SLC, SIV0)
+
+        nI = self.circuit.nI
+        nV = self.circuit.nV
+
+        SIV0[n, nI+nV] = 1
 
 class VoltageProbe(Component):
 
@@ -190,9 +198,22 @@ class CurrentSource(Component):
         self.circuit.b[self.start_node] -= self.current
         self.circuit.b[self.end_node  ] += self.current
     
-    def stamp_MNA_ss(self, A, x, b, DLC, SLC):
+    def stamp_MNA_ss(self, A, x, b, DLC, SLC, SIV0):
         b[self.start_node] -= self.current
         b[self.end_node  ] += self.current
+
+class ExternalCurrentSource(CurrentSource):
+    def __init__(self, start_node, end_node, symbol, value):
+        super().__init__(start_node, end_node, symbol, value)
+
+    def stamp_MNA_ss(self, A, x, b, DLC, SLC, SIV0):
+        super().stamp_MNA_ss(A, x, b, DLC, SLC, SIV0)
+
+        nI = self.circuit.nI
+        nV = self.circuit.nV
+
+        SIV0[self.start_node, nI+nV] = -1
+        SIV0[self.end_node, nI+nV] = 1
 
 class IdealOPA(Component):
     def __init__(self, start_node, end_node, output_node, symbol, index):
