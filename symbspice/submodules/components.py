@@ -167,28 +167,22 @@ class VoltageSource(Component):
         # Stamp the unknown current accross the voltage source in the x 'state' vector
         x[n + self.index_ss] = self.current
 
-
-class ExternalVoltageSource(VoltageSource):
-    def __init__(self, start_node, end_node, symbol, value, index):
-        super().__init__(start_node, end_node, symbol, value, index)
-
-    def stamp_MNA_ss(self, A, x, b, DLC, SLC, SIV0):
-        #call the stamp_MNA_ss method of the parent class
-        super().stamp_MNA_ss(A, x, b, DLC, SLC, SIV0)
-
         nI = self.circuit.nI
         nV = self.circuit.nV
 
         SIV0[n, nI+nV] = 1
-        nV+=1
+        self.circuit.nV+=1
+
+
+class ExternalVoltageSource(VoltageSource):
+    def __init__(self, start_node, end_node, symbol, value, index):
+        super().__init__(start_node, end_node, symbol, value, index)
 
 class VoltageProbe(Component):
 
     def __init__(self, start_node, end_node, symbol, value, index):
         super().__init__(start_node, end_node, symbol, value)
         self.index = index
-
-
 
 class CurrentSource(Component):
     def __init__(self, start_node, end_node, symbol, value):
@@ -203,20 +197,17 @@ class CurrentSource(Component):
         b[self.start_node] -= self.current
         b[self.end_node  ] += self.current
 
-class ExternalCurrentSource(CurrentSource):
-    def __init__(self, start_node, end_node, symbol, value):
-        super().__init__(start_node, end_node, symbol, value)
-
-    def stamp_MNA_ss(self, A, x, b, DLC, SLC, SIV0):
-        super().stamp_MNA_ss(A, x, b, DLC, SLC, SIV0)
-
         nI = self.circuit.nI
         nV = self.circuit.nV
 
         SIV0[self.start_node, nI+nV] = -1
         SIV0[self.end_node, nI+nV] = 1
 
-        nI+=1
+        self.circuit.nI+=1
+
+class ExternalCurrentSource(CurrentSource):
+    def __init__(self, start_node, end_node, symbol, value):
+        super().__init__(start_node, end_node, symbol, value)
 
 class IdealOPA(Component):
     def __init__(self, start_node, end_node, output_node, symbol, index):
