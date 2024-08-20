@@ -1,7 +1,8 @@
 import sympy as sp
 import numpy as np
 from .submodules.TransferFunction import TransferFunction
-from .submodules.components import AdmittanceComponent, Resistance, Capacitor, Inductance, VoltageSource, ExternalVoltageSource, CurrentSource, IdealOPA, Transformer, Gyrator 
+from .submodules.StateSpace import StateSpace
+from .submodules.components import AdmittanceComponent, Resistance, Capacitor, Inductance, VoltageSource, ExternalVoltageSource, CurrentSource, ExternalCurrentSource, IdealOPA, Transformer, Gyrator 
 
 class Circuit:
     """
@@ -25,11 +26,11 @@ class Circuit:
             inputList = self.__loadnet(inputList)
         
         self.components         = self.__create_component_list(inputList)
-        
-        self.capacitors         = self.__get_components_of_type(self.components, Capacitor)
-        self.inductors          = self.__get_components_of_type(self.components, Inductance)
-        self.voltageSources     = self.__get_components_of_type(self.components, VoltageSource)
-        self.idealOPAs          = self.__get_components_of_type(self.components, IdealOPA)
+        self.capacitors             = self.__get_components_of_type(self.components, Capacitor)
+        self.inductors              = self.__get_components_of_type(self.components, Inductance)
+        self.voltageSources         = self.__get_components_of_type(self.components, VoltageSource)
+        self.currentSources         = self.__get_components_of_type(self.components, CurrentSource)
+        self.idealOPAs              = self.__get_components_of_type(self.components, IdealOPA)
 
         self.m = len(self.voltageSources) + len(self.idealOPAs)
         self.n = self.__get_nodes()   # Number of nodes including the ground node
@@ -75,14 +76,15 @@ class Circuit:
         """
 
         component_map = {
-            'R': Resistance,
-            'C': Capacitor,
-            'L': Inductance,
-            'V': VoltageSource,
-            'I': CurrentSource,
-            'O': IdealOPA,
-            'T': Transformer,
-            'G': Gyrator
+            'R'  : Resistance,
+            'C'  : Capacitor,
+            'L'  : Inductance,
+            'V'  : VoltageSource,
+            'I'  : CurrentSource,
+            'Iin': ExternalCurrentSource,
+            'O'  : IdealOPA,
+            'T'  : Transformer,
+            'G'  : Gyrator
         }
 
         # Split the netlist line into its components
@@ -147,6 +149,87 @@ class Circuit:
         self.A = self.A[1:, 1:]
         self.b = self.b[1:, :]
         self.x = self.x[1:, :]
+
+    def ss(self):
+        """
+        Return the state space representation of the circuit
+
+        /!\ Works only for non-degenerate circuits, and circuits without OPA  /!\
+
+        Rescan the components to derive a MNA system where the state-space representation will be derived
+        To do so, the capacitors are subsituted by voltage sources and the inductors by current sources
+        The state-space representation is derived from the MNA system
+        """
+
+        #additional voltage sources, thus additional rows/lines in the M square matrix of the MNA system
+        m = len(self.voltageSources) + len(self.capacitors) 
+
+        self.nC, self.nL = 0, 0 
+        self.nI, self.nV = 0, 0
+
+
+        #create a M, e and s matrix and vectors for the MNA system that will be used to derive the state-space representation
+        M = sp.zeros(self.n + m, self.n + m)
+        e = sp.zeros(self.n + m, 1)
+        s = sp.zeros(self.n + m, 1)
+
+        DLC = sp.zeros(len(self.capacitors) + len(self.inductors), self.n + m) 
+        SLC = DLC.T
+        SIV0 = sp.zeros(self.n + m, len(self.voltageSources) + len(self.currentSources))
+        idx_ss = 0
+
+        for component in self.components:
+            if isinstance(component, VoltageSource) or isinstance(component, Capacitor):
+                component.index_ss(idx_ss) #set the index position of the stamp elements in the A matrix
+                idx_ss += 1   
+            component.stamp_MNA_ss(M, e, s, DLC, SLC, SIV0)
+
+        for i in range(self.n):
+            e[i] = sp.symbols(f'v{i}')
+
+        M = M[1:, 1:]
+        e = e[1:, :]
+        s = s[1:, :]
+
+        DLC = DLC[:, 1:]
+        SLC = SLC[1:, :]
+        SIV0 = SIV0[1:, :]
+
+        x = [] #state variable vector.
+        u = [] #input vector
+
+        for component in self.components:
+            if isinstance(component, VoltageSource):
+                u.append(component.symbol)
+            elif isinstance(component, CurrentSource):
+                u.append(component.symbol)
+            
+            elif isinstance(component, Capacitor):
+                x.append(component.voltage)
+            elif isinstance(component, Inductance):
+                x.append(component.current)
+
+        #First, check if M is full rank:
+        if M.rank() != M.shape[0]:
+            #or M.det() == 0 ? could works...
+            #for the moment, we don't handle degenerate circuits
+            raise ValueError("The circuit is maybe degenerate. Not yet handled.")
+        else:
+            #M is of full rank, that is, M has no dependent rows, and the system M·e=s has a unique solution
+            #for any arbitrary value of s, which means that for any arbitrary values of capacitors’ voltage and inductors’ current,
+            #M·e = s has a unique solution.
+        
+            M_inv = sp.simplify(M.inv())
+
+            A = DLC * M_inv * SLC
+            B = DLC * M_inv * SIV0
+            
+            x = sp.Matrix(x)
+            u = sp.Matrix(u)
+
+        return StateSpace(self, A, x, B, u)
+
+
 
     def show(self):
         print('\n\nA matrix:\n')
