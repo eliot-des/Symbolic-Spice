@@ -41,7 +41,7 @@ class AdmittanceComponent(Component):
         self.circuit.A[self.start_node,   self.end_node] -= self.admittance
         self.circuit.A[self.end_node,   self.start_node] -= self.admittance
     
-    def stamp_MNA_ss(self, A, x, b):
+    def stamp_MNA_ss(self, A, x, b, DLC, SLC):
         #method to stamp the admittance of the components in a MNA system 
         #that will be used to derive the state-space representation
         A[self.start_node, self.start_node] += self.admittance
@@ -70,11 +70,13 @@ class Capacitor(AdmittanceComponent):
     def index_ss(self, index):
         self.index_ss = index
         
-    def stamp_MNA_ss(self, A, x, b):
+    def stamp_MNA_ss(self, A, x, b, DLC, SLC):
         #method to stamp the capacitor in a MNA system used to derive the state-space representation
         #Here the capacitor is represented as a pure voltage source
 
         n = self.circuit.n
+        nC = self.circuit.nC
+        nL = self.circuit.nL
         
         A[n + self.index_ss, self.start_node] =  1
         A[n + self.index_ss,   self.end_node] = -1
@@ -86,6 +88,11 @@ class Capacitor(AdmittanceComponent):
 
         # Stamp the unknown current accross the voltage source in the x 'state' vector
         x[n + self.index_ss] = self.current
+
+        SLC[n + self.index_ss, nC+nL] = 1
+        DLC[nC+nL, n + self.index_ss] = 1/self.symbol
+
+        self.circuit.nC+=1
     
 
 class Inductance(AdmittanceComponent):
@@ -96,15 +103,26 @@ class Inductance(AdmittanceComponent):
 
 
         #only needed for the state-space representation
+        self.voltage = sp.symbols(f'v_{self.symbol}')
         self.current = sp.symbols(f'i_{self.symbol}')
 
-    def stamp_MNA_ss(self, A, x, b):
+    def stamp_MNA_ss(self, A, x, b, DLC, SLC):
         #method to stamp the inductor in a MNA system used to derive the state-space representation
         #Here the inductor is represented as a pure current source
         n = self.circuit.n
+        nC = self.circuit.nC
+        nL = self.circuit.nL
         
         b[self.start_node] -= self.current
         b[self.end_node  ] += self.current
+
+        SLC[self.start_node, nC+nL] = -1
+        SLC[self.end_node, nC+nL] = 1
+
+        DLC[nC+nL, self.start_node] = 1/self.symbol
+        DLC[nC+nL, self.end_node] = -1/self.symbol
+
+        self.circuit.nL+=1
         
 
 
@@ -135,7 +153,7 @@ class VoltageSource(Component):
     def index_ss(self, index):
         self.index_ss = index
 
-    def stamp_MNA_ss(self, A, x, b):
+    def stamp_MNA_ss(self, A, x, b, DLC, SLC):
         n = self.circuit.n
         
         A[n + self.index_ss, self.start_node] =  1
@@ -172,7 +190,7 @@ class CurrentSource(Component):
         self.circuit.b[self.start_node] -= self.current
         self.circuit.b[self.end_node  ] += self.current
     
-    def stamp_MNA_ss(self, A, x, b):
+    def stamp_MNA_ss(self, A, x, b, DLC, SLC):
         b[self.start_node] -= self.current
         b[self.end_node  ] += self.current
 
