@@ -7,7 +7,7 @@ C2 N004 N003 22n
 Rb N004 N005 500k
 Rm N005 0 12.5k
 C3 N005 N003 22n
-Vin N001 0 AC 1
+V1 N001 0 AC 1
 .ac dec 100 1 20k
 .backanno
 .end

@@ -6,10 +6,11 @@ Created on Thur Jul 04 17:27:53 2024
 """
 
 
-from scipy.signal import freqs
+from scipy.signal import freqs, freqz
 import numpy as np
 import sympy as sp
-from symbolicspice import Circuit, plotTransfertFunction, loadnet
+from symbspice import Circuit
+import matplotlib.pyplot as plt
 
 #declaration of the circuit
 '''
@@ -18,7 +19,7 @@ inputList  =   ['Vin 1 0 1',
                 'L1 1 2 2.29e-3',
                 'R1 2 0 8']
 
-'''
+
 # example with an active low-shelf filter with OPA 
 inputList  =   ['Vin 1 0 1',
                 'OP1 1 2 3',
@@ -50,15 +51,15 @@ inputList   =  ['Vin 1 0 1',
                 'OP1 3 4 4',
                 'R2 2 4 4824',
                 'R3 4 0 8',]       
-
+'''
 #declare a circuit object
 circuit = Circuit(inputList)
-#circuit = Circuit(r'FMV Tone Stack.net')
+#circuit = symspi.Circuit(r'FMV Tone Stack.net')
 #circuit.display_components()
 circuit.stamp_system()
-circuit.print_system()
-
+circuit.show()
 '''
+
 # Solve the system :
 # The Code in this block can be useful if you want 
 # to see the symbolic solution of the x vector.
@@ -71,14 +72,12 @@ sp.pprint(sp.Eq(circuit.x, circuit.x_solution))
 
 # Get the symbolic transfer function between the output node and the input node
 # DONT FORGET TO CHANGE THE OUTPUT AND INPUT NODES ACCORDING TO YOUR NETLIST !
-H = circuit.get_symbolic_transfert_function(output_node = 4, input_node = 1, normalize=True)
+H = circuit.tf(output_node = 5, input_node=1)
 
-'''
-print('\n\nSymbolic transfer function:\n')
 sp.pprint(H.sympyExpr)
-'''
 
-b, a = H.symbolic_analog_filter_coefficients()
+b, a = H.coeffs()
+
 
 print(f'\nb coefficients :{b}')
 print(f'a coefficients :{a}')
@@ -95,23 +94,42 @@ w = 2*np.pi*f
 '''
 component_values = {'C3': np.array([10e-12, 22e-12, 50e-12]),
                     'R4': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 500e3])}
-b_num, a_num =  H.numerical_analog_filter_coefficients(component_values)
+
+b_num, a_num =  H.numerical_analog_coeffs(component_values, combination='parallel')
+print(b_num.shape)
 
 h = np.array([[freqs(b_num[i][j], a_num[i][j], worN=w)[1] for j in range(len(a_num[i]))] for i in range(len(b_num))])
 plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, phase=True)
 '''
 
-
+#, 'R2': np.array([4.7e3, 10e3, 22e3, 47e3, 100e3, 220e3])
 #2D Case
 component_values = {'R1': np.array([1e3, 2.2e3, 4.7e3, 10e3, 22e3, 47e3]), 'R2': np.array([1e3,2.2e3, 4.7e3, 10e3, 22e3, 47e3])}
 b_num, a_num =  H.numerical_analog_filter_coefficients(component_values, combination='parallel')
 
-h = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(a_num))])
-plotTransfertFunction(f, h, legend = component_values, semilogx=True, dB=True, phase=True)
+
+h_analog = np.array([freqs(b_num[i], a_num[i], worN=w)[1] for i in range(len(a_num))])
+h_discrete = np.array([freqz(b_num_dig[i], a_num_dig[i], worN=f, fs=Fs)[1] for i in range(len(a_num_dig))])
+
+
+#plotTransfertFunction(f, h_analog, legend = component_values, semilogx=True, dB=True, phase=True)
+
+#plotTransfertFunction(f, h_discrete, legend = component_values, semilogx=True, dB=True, phase=True)
+
+fig, ax = plt.subplots(2, 1, figsize=(10, 10))
+
+for i in range (len(h_analog)):
+    ax[0].semilogx(f, 20*np.log10(np.abs(h_analog[i])), label='Analog')
+    ax[0].semilogx(f, 20*np.log10(np.abs(h_discrete[i])),'--', label='Discrete')
+    ax[1].semilogx(f, np.angle(h_analog[i]), label='Analog')
+    ax[1].semilogx(f, np.angle(h_discrete[i]), '--', label='Discrete')
+
+plt.show()
 
 '''
+
 #1D Case
-b_num, a_num =  H.numerical_analog_filter_coefficients()
+b_num, a_num =  H.numerical_analog_coeffs()
 
 _, h = freqs(b_num, a_num, worN=w)
 plotTransfertFunction(f, h, legend='test', semilogx=True, dB=True, phase=True)
