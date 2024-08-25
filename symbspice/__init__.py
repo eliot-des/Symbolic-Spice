@@ -176,11 +176,12 @@ class Circuit:
         DLC = sp.zeros(len(self.capacitors) + len(self.inductors), self.n + m) 
         SLC = DLC.T
         SIV0 = sp.zeros(self.n + m, len(self.voltageSources) + len(self.currentSources))
+
         idx_ss = 0
 
         for component in self.components:
             if isinstance(component, VoltageSource) or isinstance(component, Capacitor):
-                component.index_ss(idx_ss) #set the index position of the stamp elements in the A matrix
+                component.index_ss(idx_ss) #set the index position of the stamp elements in the M matrix
                 idx_ss += 1   
             component.stamp_MNA_ss(M, e, s, DLC, SLC, SIV0)
 
@@ -211,9 +212,9 @@ class Circuit:
 
         #First, check if M is full rank:
         if M.rank() != M.shape[0]:
-            #or M.det() == 0 ? could works...
-            #for the moment, we don't handle degenerate circuits
-            raise ValueError("The circuit is maybe degenerate. Not yet handled.")
+            print('The circuit is degenerate, the state-space representation cannot be derived')
+            return Nones
+
         else:
             #M is of full rank, that is, M has no dependent rows, and the system M·e=s has a unique solution
             #for any arbitrary value of s, which means that for any arbitrary values of capacitors’ voltage and inductors’ current,
@@ -227,7 +228,19 @@ class Circuit:
             x = sp.Matrix(x)
             u = sp.Matrix(u)
 
-        return StateSpace(self, A, x, B, u)
+            '''
+            For the moment, we will consider that the output vector y is define as 
+            the e vector of the MNA system, such that :
+            # M·e = s = SLC·x + SIV0·u
+                e = M^{-1}·SLC·x + M^{-1}·SIV0·u
+            y = e =     C     ·x +     D      ·u   
+            '''
+
+            y = e
+            C = M_inv * SLC
+            D = M_inv * SIV0
+
+        return StateSpace(self, A, x, B, u, C, y, D)
 
 
 
