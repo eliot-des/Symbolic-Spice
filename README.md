@@ -35,5 +35,8 @@ Symbolic-spice relies on the Modified Nodal Analysis, introduced by [Chen-When H
     - [x] Add normalizing.
     - [x] Solve numpy object/float situation.
 - [ ] Add feature to get State-Space model from netlist.
+	- [x] Get automated State-Space model for linear circuits.
+ 	- [ ] Get automated State-Space model for degenerate linear circuits.
+  	- [ ] Get automated State-Space model for non-linear circuits. 
 - [ ] Add optimizer to fine tune parameters based on a target measurement.
 - [ ] Use Pultec's EQP-1A as an example.
